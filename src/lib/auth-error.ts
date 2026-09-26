@@ -39,11 +39,25 @@ function errorFrom(params: URLSearchParams): AuthLinkError | null {
   };
 }
 
+function paramsFrom(raw: string, prefix: string): URLSearchParams {
+  return new URLSearchParams(raw.startsWith(prefix) ? raw.slice(prefix.length) : raw);
+}
+
 /** Parses Supabase auth error params from a query string and/or hash fragment. */
 export function parseAuthLinkError(search: string, hash: string): AuthLinkError | null {
-  const query = search.startsWith('?') ? search.slice(1) : search;
-  const fragment = hash.startsWith('#') ? hash.slice(1) : hash;
-  return errorFrom(new URLSearchParams(query)) ?? errorFrom(new URLSearchParams(fragment));
+  return errorFrom(paramsFrom(search, '?')) ?? errorFrom(paramsFrom(hash, '#'));
+}
+
+/**
+ * True when the URL carries a Supabase auth callback payload: a PKCE `code`
+ * (successful email-link verification) or error params from a failed one.
+ * These must never be stripped before supabase-js has seen them.
+ */
+export function isAuthCallback(search: string, hash: string): boolean {
+  if (parseAuthLinkError(search, hash)) return true;
+  const query = paramsFrom(search, '?');
+  const fragment = paramsFrom(hash, '#');
+  return query.has('code') || fragment.has('code') || fragment.has('access_token');
 }
 
 /** Human-readable message for a bounced auth link. */

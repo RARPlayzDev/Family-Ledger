@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createQueryClient } from '@/lib/query-client';
 import { supabaseEnv } from '@/lib/env';
-import { parseAuthLinkError } from '@/lib/auth-error';
+import { isAuthCallback } from '@/lib/auth-error';
 import { SessionProvider } from '@/hooks/use-session';
 import { HouseholdProvider } from '@/hooks/use-household';
 import { ToastProvider } from '@/hooks/use-toast';
@@ -24,14 +24,15 @@ import { MembersPage } from '@/routes/MembersPage';
 import { SettingsPage } from '@/routes/SettingsPage';
 
 /**
- * Landing route. Failed Supabase email links come back with `error=...` params
- * (e.g. `error_code=otp_expired` for a spent/expired verification link) — send
- * those to /auth with the parameters intact so the sign-in screen can explain
- * the failure instead of silently swallowing it. Everything else goes to /app.
+ * Landing route. Supabase email links bounce here with either a PKCE `?code=`
+ * (successful verification) or `?error=...` params (expired/used links). Both
+ * must reach /auth with parameters intact: supabase-js exchanges the code on
+ * that URL (detectSessionInUrl), and the sign-in screen explains failures.
+ * Everything else goes to /app.
  */
 function RootRedirect() {
   const location = useLocation();
-  if (parseAuthLinkError(location.search, location.hash)) {
+  if (isAuthCallback(location.search, location.hash)) {
     return (
       <Navigate
         to={{ pathname: '/auth', search: location.search, hash: location.hash }}

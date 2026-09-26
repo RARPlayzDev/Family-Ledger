@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   authLinkErrorMessage,
+  isAuthCallback,
   parseAuthLinkError,
   stripAuthLinkError,
 } from '@/lib/auth-error';
@@ -54,6 +55,27 @@ describe('authLinkErrorMessage', () => {
 
   it('falls back to a generic message when nothing else is known', () => {
     expect(authLinkErrorMessage({ code: 'mystery', description: null })).toContain('link');
+  });
+});
+
+describe('isAuthCallback', () => {
+  it('detects a PKCE code in the query string', () => {
+    expect(isAuthCallback('?code=3081cdd2-aa01-4db3-92f8-e3f90ac19427', '')).toBe(true);
+  });
+
+  it('detects error params in the query string', () => {
+    expect(isAuthCallback('?error=access_denied&error_code=otp_expired', '')).toBe(true);
+  });
+
+  it('detects error params and tokens in the hash fragment', () => {
+    expect(isAuthCallback('', '#error=access_denied&error_code=otp_expired')).toBe(true);
+    expect(isAuthCallback('', '#access_token=abc&token_type=bearer')).toBe(true);
+  });
+
+  it('ignores ordinary URLs', () => {
+    expect(isAuthCallback('?mode=reset-password', '')).toBe(false);
+    expect(isAuthCallback('', '#state=abc')).toBe(false);
+    expect(isAuthCallback('', '')).toBe(false);
   });
 });
 
