@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createQueryClient } from '@/lib/query-client';
 import { supabaseEnv } from '@/lib/env';
+import { parseAuthLinkError } from '@/lib/auth-error';
 import { SessionProvider } from '@/hooks/use-session';
 import { HouseholdProvider } from '@/hooks/use-household';
 import { ToastProvider } from '@/hooks/use-toast';
@@ -21,6 +22,25 @@ import { AnalyticsPage } from '@/routes/AnalyticsPage';
 import { BudgetsPage } from '@/routes/BudgetsPage';
 import { MembersPage } from '@/routes/MembersPage';
 import { SettingsPage } from '@/routes/SettingsPage';
+
+/**
+ * Landing route. Failed Supabase email links come back with `error=...` params
+ * (e.g. `error_code=otp_expired` for a spent/expired verification link) — send
+ * those to /auth with the parameters intact so the sign-in screen can explain
+ * the failure instead of silently swallowing it. Everything else goes to /app.
+ */
+function RootRedirect() {
+  const location = useLocation();
+  if (parseAuthLinkError(location.search, location.hash)) {
+    return (
+      <Navigate
+        to={{ pathname: '/auth', search: location.search, hash: location.hash }}
+        replace
+      />
+    );
+  }
+  return <Navigate to="/app" replace />;
+}
 
 export function App() {
   const [queryClient] = useState(() => createQueryClient());
@@ -72,8 +92,8 @@ export function App() {
                   </Route>
 
                   {/* Default redirect to /app */}
-                  <Route path="/" element={<Navigate to="/app" replace />} />
-                  <Route path="*" element={<Navigate to="/app" replace />} />
+                  <Route path="/" element={<RootRedirect />} />
+                  <Route path="*" element={<RootRedirect />} />
                 </Routes>
                 <Toaster />
               </BrowserRouter>

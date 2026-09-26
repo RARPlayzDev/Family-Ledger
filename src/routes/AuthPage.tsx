@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { IndianRupee, Sparkles } from 'lucide-react';
+import { AlertTriangle, IndianRupee, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import {
   updatePassword,
 } from '@/services/auth.service';
 import { errorMessage } from '@/lib/errors';
+import { authLinkErrorMessage, parseAuthLinkError, stripAuthLinkError } from '@/lib/auth-error';
 
 type AuthMode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
 
@@ -35,6 +36,18 @@ export function AuthPage() {
   const [displayName, setDisplayName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  // Supabase bounces failed email links back with ?error=... params (expired
+  // or reused verification OTPs, redirect mismatches). Show a plain-language
+  // explanation once, then clean the URL so a refresh doesn't repeat it.
+  useEffect(() => {
+    const parsed = parseAuthLinkError(window.location.search, window.location.hash);
+    if (!parsed) return;
+    setLinkError(authLinkErrorMessage(parsed));
+    const { search, hash } = stripAuthLinkError(window.location.search, window.location.hash);
+    window.history.replaceState(null, '', `${window.location.pathname}${search}${hash}`);
+  }, []);
 
   // If already authenticated and not in password reset mode, navigate to app
   if (status === 'authenticated' && mode !== 'reset-password') {
@@ -158,6 +171,18 @@ export function AuthPage() {
             One shared household expense ledger for the whole family
           </p>
         </div>
+
+        {linkError ? (
+          <div role="alert" className="rounded-lg border border-danger/30 bg-danger-soft p-3">
+            <div className="flex gap-2">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-semibold text-danger">That link didn't work</p>
+                <p className="text-xs text-content-muted">{linkError}</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <Card>
           {mode !== 'forgot-password' && mode !== 'reset-password' && (
