@@ -1,100 +1,109 @@
-import type { Session, User } from '@supabase/supabase-js';
-import { appOrigin } from '@/lib/env';
-import { getSupabase } from '@/lib/supabase';
+import { getSupabase, getSessionToken, setSessionToken } from '@/lib/supabase';
 
 /**
- * Authentication wrapper.
+ * Custom authentication (no Supabase Auth, no emails).
  *
- * Every call goes through supabase-js so session persistence, token refresh and
- * the PKCE flow are handled by the SDK - the app never stores tokens itself.
+ * sign_up / login / resolve_session / logout are SECURITY DEFINER RPCs in
+ * 000050_custom_auth.sql. Passwords are verified by bcrypt inside PostgreSQL,
+ * so hashes never leave the database; the client only ever sees a random
+ * session token, which lib/supabase.ts attaches to every request as the
+ * `x-familyledger-session` header.
  */
 
-export type AuthResult = {
-  user: User | null;
-  session: Session | null;
-  /** true when the user must confirm their email before a session exists. */
-  needsEmailConfirmation: boolean;
+export type AuthUser = {
+  id: string;
+  email: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  created_at: string;
 };
 
-export async function getCurrentSession(): Promise<Session | null> {
-  const { data, error } = await getSupabase().auth.getSession();
-  if (error) throw error;
-  return data.session;
-}
+export type AppSession = {
+  token: string;
+  user: AuthUser;
+};
 
-export function onAuthStateChange(
-  callback: (session: Session | null, event: string) => void,
-): () => void {
-  const { data } = getSupabase().auth.onAuthStateChange((event, session) => {
-    callback(session, event);
-  });
-  return () => data.subscription.unsubscribe();
-}
+type AuthRpcResult = { token: string; user: AuthUser };
 
-export async function signInWithPassword(email: string, password: string): Promise<AuthResult> {
-  const { data, error } = await getSupabase().auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password,
-  });
-  if (error) throw error;
-  return { user: data.user, session: data.session, needsEmailConfirmation: false };
-}
-
-export async function signUpWithPassword(
-  email: string,
-  password: string,
-  displayName: string,
-): Promise<AuthResult> {
-  const { data, error } = await getSupabase().auth.signUp({
-    email: email.trim().toLowerCase(),
-    password,
-    options: {
-      data: { display_name: displayName.trim() },
-      emailRedirectTo: `${appOrigin()}/auth`,
-    },
-  });
-  if (error) throw error;
-
-  // Supabase returns a user with an empty identities array when the address is
-  // already registered (it deliberately does not reveal that fact).
-  const alreadyRegistered = !data.session && (data.user?.identities?.length ?? 1) === 0;
-  if (alreadyRegistered) {
-    throw new Error(
-      'An account already exists for this email address. Sign in instead, or reset the password.',
-    );
+function toSession(result: AuthRpcResult | null): AppSession {
+  if (!result || !result.token || !result.user) {
+    throw new Error('The server did not return a session. Please try again.');
   }
-
-  return {
-    user: data.user,
-    session: data.session,
-    needsEmailConfirmation: !data.session,
-  };
+  return { token: result.token, user: result.user };
 }
 
+/** Creates an account and signs in immediately (single transaction). */
+export async function signUp(input: {
+  email: string;
+  username: string;
+  password: string;
+  displayName?: string;
+}): Promise<AppSession> {
+  const payload = input.displayName?.trim()
+    ? {
+        p_email: input.email.trim().toLowerCase(),
+        p_username: input.username.trim().toLowerCase(),
+        p_password: input.password,
+        p_display_name: input.displayName.trim(),
+      }
+    : {
+        p_email: input.email.trim().toLowerCase(),
+        p_username: input.username.trim().toLowerCase(),
+        p_password: input.password,
+      };
+  const { data, error } = await getSupabase().rpc('sign_up', payload);
+  if (error) throw error;
+  const session = toSession(data);
+  setSessionToken(session.token);
+  return session;
+}
+
+/** Signs in with either the email address or the username. */
+export async function signIn(identifier: string, password: string): Promise<AppSession> {
+  const { data, error } = await getSupabase().rpc('login', {
+    p_identifier: identifier.trim().toLowerCase(),
+    p_password: password,
+  });
+  if (error) throw error;
+  const session = toSession(data);
+  setSessionToken(session.token);
+  return session;
+}
+
+/**
+ * Restores the session stored in localStorage on boot.
+ * Returns null when there is no token or it has expired/been revoked.
+ */
+export async function resolveStoredSession(): Promise<AppSession | null> {
+  const token = getSessionToken();
+  if (!token) return null;
+  try {
+    const { data, error } = await getSupabase().rpc('resolve_session', { p_token: token });
+    if (error) throw error;
+    if (!data?.user) {
+      setSessionToken(null);
+      return null;
+    }
+    return { token, user: data.user };
+  } catch {
+    // Offline or server hiccup: do NOT destroy a possibly-valid session here;
+    // the app shows its error/retry states instead.
+    return null;
+  }
+}
+
+/** Revokes the current token server-side and clears local state. */
 export async function signOut(): Promise<void> {
-  const { error } = await getSupabase().auth.signOut();
-  if (error) throw error;
-}
-
-export async function sendPasswordResetEmail(email: string): Promise<void> {
-  const { error } = await getSupabase().auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-    redirectTo: `${appOrigin()}/auth?mode=reset-password`,
-  });
-  if (error) throw error;
-}
-
-export async function updatePassword(password: string): Promise<void> {
-  const { error } = await getSupabase().auth.updateUser({ password });
-  if (error) throw error;
-}
-
-export async function resendConfirmationEmail(email: string): Promise<void> {
-  const { error } = await getSupabase().auth.resend({
-    type: 'signup',
-    email: email.trim().toLowerCase(),
-    options: { emailRedirectTo: `${appOrigin()}/auth` },
-  });
-  if (error) throw error;
+  const token = getSessionToken();
+  try {
+    if (token) {
+      const { error } = await getSupabase().rpc('logout', { p_token: token });
+      if (error) throw error;
+    }
+  } finally {
+    setSessionToken(null);
+  }
 }
 
 /** Initials for the avatar fallback ("Priya Nair" -> "PN"). */

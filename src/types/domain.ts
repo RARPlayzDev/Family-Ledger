@@ -127,28 +127,6 @@ export type BudgetWithCategory = BudgetRow & {
   category: CategorySummary | null;
 };
 
-export type InvitationStatus = 'pending' | 'expired' | 'accepted' | 'revoked';
-
-export type HouseholdInvitation = {
-  id: string;
-  email: string;
-  role: HouseholdRole;
-  status: InvitationStatus;
-  expiresAt: string;
-  createdAt: string;
-  acceptedAt: string | null;
-  revokedAt: string | null;
-};
-
-export type InvitationPreview = {
-  status: InvitationStatus | 'invalid';
-  householdId?: string;
-  householdName?: string | null;
-  emailHint?: string;
-  expiresAt?: string;
-  alreadyMember?: boolean;
-};
-
 export type MonthlyInsights = {
   householdId: string;
   monthKey: MonthKey;

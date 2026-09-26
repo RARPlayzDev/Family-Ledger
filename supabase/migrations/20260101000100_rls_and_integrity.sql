@@ -1,12 +1,17 @@
 -- =============================================================================
 -- FamilyLedger :: 0002 membership integrity, helpers and Row Level Security
 -- -----------------------------------------------------------------------------
--- Access model (see SECURITY.md for the full write-up):
+-- Access model:
+--   * custom auth: accounts live in public.profiles; the caller identity is
+--     public.session_user_id() (see 000050_custom_auth.sql), which resolves the
+--     x-familyledger-session request header. Supabase Auth is not involved.
+--   * every client request arrives as the `anon` role (publishable key), so
+--     policies are declared `to anon` and RLS does the per-session guarding.
 --   * a household is a set of accounts joined through household_members
---   * every ledger query is scoped to a household the caller belongs to
---   * expenses.spent_by must equal auth.uid() on insert -> no spender spoofing
+--   * expenses.spent_by must equal session_user_id() on insert -> no spoofing
 --   * members mutate their own expenses; owners administer the household
---   * invitations have no client policies at all; only Edge Functions touch them
+--   * new members join through a household join code (join_by_code RPC) - no
+--     emails, no invitations, no Edge Functions
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -45,7 +50,7 @@ as $$
 $$;
 
 -- Public wrappers used inside RLS policies. They only ever reason about
--- auth.uid(), so a caller cannot probe someone else's membership.
+-- session_user_id(), so a caller cannot probe someone else's membership.
 create or replace function public.is_household_member(p_household_id uuid)
 returns boolean
 language sql
@@ -53,7 +58,7 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select public._member_of(p_household_id, auth.uid());
+  select public._member_of(p_household_id, public.session_user_id());
 $$;
 
 create or replace function public.is_household_owner(p_household_id uuid)
@@ -63,7 +68,7 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select public._owner_of(p_household_id, auth.uid());
+  select public._owner_of(p_household_id, public.session_user_id());
 $$;
 
 -- "Do I share a household with this profile?" - used to let members read the
@@ -80,51 +85,20 @@ as $$
     from public.household_members mine
     join public.household_members theirs
       on theirs.household_id = mine.household_id
-    where mine.user_id = auth.uid()
+    where mine.user_id = public.session_user_id()
       and theirs.user_id = p_user_id
   );
 $$;
 
 revoke all on function public._member_of(uuid, uuid) from public, anon, authenticated;
 revoke all on function public._owner_of(uuid, uuid) from public, anon, authenticated;
-revoke all on function public.is_household_member(uuid) from public, anon;
-revoke all on function public.is_household_owner(uuid) from public, anon;
-revoke all on function public.shares_household_with(uuid) from public, anon;
-grant execute on function public.is_household_member(uuid) to authenticated;
-grant execute on function public.is_household_owner(uuid) to authenticated;
-grant execute on function public.shares_household_with(uuid) to authenticated;
+revoke all on function public.is_household_member(uuid) from public;
+revoke all on function public.is_household_owner(uuid) from public;
+revoke all on function public.shares_household_with(uuid) from public;
+grant execute on function public.is_household_member(uuid) to anon, authenticated;
+grant execute on function public.is_household_owner(uuid) to anon, authenticated;
+grant execute on function public.shares_household_with(uuid) to anon, authenticated;
 
--- ---------------------------------------------------------------------------
--- Profile bootstrap on signup
--- ---------------------------------------------------------------------------
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_display_name text;
-begin
-  v_display_name := nullif(btrim(coalesce(new.raw_user_meta_data ->> 'display_name', '')), '');
-  if v_display_name is null then
-    v_display_name := coalesce(
-      nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
-      'Member'
-    );
-  end if;
-
-  insert into public.profiles (id, display_name)
-  values (new.id, left(v_display_name, 80))
-  on conflict (id) do nothing;
-
-  return new;
-end;
-$$;
-
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
 -- ---------------------------------------------------------------------------
 -- Household creation -> owner membership row (kept in sync on transfer)
 -- ---------------------------------------------------------------------------
@@ -246,7 +220,7 @@ begin
 
   -- Changing who spent the money is an owner-only administrative action.
   if tg_op = 'UPDATE' and new.spent_by <> old.spent_by then
-    if not public._owner_of(old.household_id, auth.uid()) then
+    if not public._owner_of(old.household_id, public.session_user_id()) then
       raise exception 'Only the household owner can reassign an expense to another member'
         using errcode = 'insufficient_privilege';
     end if;
@@ -311,6 +285,7 @@ begin
         using errcode = 'check_violation';
     end if;
   end if;
+
   return new;
 end;
 $$;
@@ -328,182 +303,237 @@ alter table public.household_members enable row level security;
 alter table public.categories enable row level security;
 alter table public.expenses enable row level security;
 alter table public.budgets enable row level security;
-alter table public.invitations enable row level security;
 
 -- profiles -------------------------------------------------------------------
+-- Read: your own row, or the rows of people sharing a household with you
+-- (names/avatars in member lists). password_hash is not even grantable to the
+-- client role - see the column-level grants at the end of this file.
 create policy profiles_select_family
   on public.profiles for select
-  to authenticated
-  using (id = auth.uid() or public.shares_household_with(id));
+  to anon
+  using (id = public.session_user_id() or public.shares_household_with(id));
 
-create policy profiles_insert_self
-  on public.profiles for insert
-  to authenticated
-  with check (id = auth.uid());
-
+-- Self-service edits only (display name / avatar via column grants).
 create policy profiles_update_self
   on public.profiles for update
-  to authenticated
-  using (id = auth.uid())
-  with check (id = auth.uid());
+  to anon
+  using (id = public.session_user_id())
+  with check (id = public.session_user_id());
 
-create policy profiles_delete_self
-  on public.profiles for delete
-  to authenticated
-  using (id = auth.uid());
+-- No insert policy: profiles rows are created exclusively by the sign_up RPC
+-- (SECURITY DEFINER), which bypasses RLS.
 
 -- households -----------------------------------------------------------------
 create policy households_select_member
   on public.households for select
-  to authenticated
+  to anon
   using (public.is_household_member(id));
 
--- A household may only be created for yourself: the trigger then inserts the
--- matching owner membership row.
-create policy households_insert_self_owned
+create policy households_insert_self_owner
   on public.households for insert
-  to authenticated
-  with check (owner_id = auth.uid());
+  to anon
+  with check (owner_id = public.session_user_id());
 
--- Owners rename/configure their household and may hand ownership to a member.
+-- Updates are owner-only. Ownership may move to an existing member (transfer),
+-- otherwise the acting owner must stay the owner.
 create policy households_update_owner
   on public.households for update
-  to authenticated
-  using (owner_id = auth.uid())
-  with check (owner_id = auth.uid());
+  to anon
+  using (owner_id = public.session_user_id())
+  with check (
+    owner_id = public.session_user_id()
+    or public.is_household_member(owner_id)
+  );
 
 create policy households_delete_owner
   on public.households for delete
-  to authenticated
-  using (owner_id = auth.uid());
+  to anon
+  using (owner_id = public.session_user_id());
 
 -- household_members ----------------------------------------------------------
-create policy household_members_select_member
+create policy household_members_select
   on public.household_members for select
-  to authenticated
-  using (user_id = auth.uid() or public.is_household_member(household_id));
+  to anon
+  using (user_id = public.session_user_id() or public.is_household_member(household_id));
 
--- Owners may attach an existing account, but never grant the owner role and
--- never rewrite their own row through the API.
+-- Owners may attach an existing account directly, but never grant the owner
+-- role and never touch their own row (leave must go through DELETE).
 create policy household_members_insert_owner
   on public.household_members for insert
-  to authenticated
+  to anon
   with check (
     public.is_household_owner(household_id)
     and role = 'member'
-    and user_id <> auth.uid()
+    and user_id <> public.session_user_id()
   );
 
 create policy household_members_update_owner
   on public.household_members for update
-  to authenticated
-  using (public.is_household_owner(household_id) and user_id <> auth.uid())
+  to anon
+  using (
+    public.is_household_owner(household_id)
+    and user_id <> public.session_user_id()
+  )
   with check (
     public.is_household_owner(household_id)
-    and user_id <> auth.uid()
+    and user_id <> public.session_user_id()
     and role = 'member'
   );
 
--- Owners remove members; non-owners may only remove themselves (leave).
+-- A member removes themselves; an owner removes other members.
 create policy household_members_delete_owner_or_self
   on public.household_members for delete
-  to authenticated
+  to anon
   using (
-    (user_id = auth.uid() and role = 'member')
-    or (public.is_household_owner(household_id) and user_id <> auth.uid())
+    (user_id = public.session_user_id() and role = 'member')
+    or (public.is_household_owner(household_id) and user_id <> public.session_user_id())
   );
 
+-- ---------------------------------------------------------------------------
+-- join_by_code : join a household by its shareable 6-character code.
+-- Knowing the code IS the authorization; the acting account comes from the
+-- session header, never from client input.
+-- ---------------------------------------------------------------------------
+create or replace function public.join_by_code(p_code text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user uuid := public.session_user_id();
+  v_household uuid;
+  v_name text;
+begin
+  if v_user is null then
+    raise exception 'Your session has expired. Sign in again.';
+  end if;
+
+  select h.id, h.name
+    into v_household, v_name
+    from public.households h
+   where h.join_code = upper(btrim(coalesce(p_code, '')));
+
+  if v_household is null then
+    raise exception 'That join code is not valid. Ask the family owner for the current code.';
+  end if;
+
+  if exists (
+    select 1 from public.household_members m
+     where m.household_id = v_household and m.user_id = v_user
+  ) then
+    raise exception 'You are already a member of this household.';
+  end if;
+
+  insert into public.household_members (household_id, user_id, role)
+  values (v_household, v_user, 'member');
+
+  return jsonb_build_object('household_id', v_household, 'name', v_name);
+end;
+$$;
+
+revoke all on function public.join_by_code(text) from public;
+grant execute on function public.join_by_code(text) to anon, authenticated;
+
 -- categories -----------------------------------------------------------------
-create policy categories_select_member_or_system
+-- System defaults (household_id IS NULL) are readable by everybody with a
+-- session; household categories follow membership.
+create policy categories_select
   on public.categories for select
-  to authenticated
-  using (household_id is null or public.is_household_member(household_id));
+  to anon
+  using (
+    household_id is null
+    or public.is_household_member(household_id)
+  );
 
 create policy categories_insert_owner
   on public.categories for insert
-  to authenticated
+  to anon
   with check (
     household_id is not null
     and public.is_household_owner(household_id)
-    and created_by = auth.uid()
+    and created_by = public.session_user_id()
   );
 
 create policy categories_update_owner
   on public.categories for update
-  to authenticated
+  to anon
   using (household_id is not null and public.is_household_owner(household_id))
   with check (household_id is not null and public.is_household_owner(household_id));
 
 create policy categories_delete_owner
   on public.categories for delete
-  to authenticated
+  to anon
   using (household_id is not null and public.is_household_owner(household_id));
 
 -- expenses -------------------------------------------------------------------
 -- Every member of the household reads the ONE shared ledger.
 create policy expenses_select_member
   on public.expenses for select
-  to authenticated
+  to anon
   using (public.is_household_member(household_id));
 
 -- A member may only record an expense under their own identity, inside a
 -- household they belong to. The composite FK re-checks membership in storage.
 create policy expenses_insert_own_identity
   on public.expenses for insert
-  to authenticated
-  with check (spent_by = auth.uid() and public.is_household_member(household_id));
+  to anon
+  with check (spent_by = public.session_user_id() and public.is_household_member(household_id));
 
 -- Members edit their own expenses; owners administer all household expenses.
 create policy expenses_update_member_or_owner
   on public.expenses for update
-  to authenticated
-  using (spent_by = auth.uid() or public.is_household_owner(household_id))
-  with check (spent_by = auth.uid() or public.is_household_owner(household_id));
+  to anon
+  using (spent_by = public.session_user_id() or public.is_household_owner(household_id))
+  with check (spent_by = public.session_user_id() or public.is_household_owner(household_id));
 
 create policy expenses_delete_member_or_owner
   on public.expenses for delete
-  to authenticated
-  using (spent_by = auth.uid() or public.is_household_owner(household_id));
+  to anon
+  using (spent_by = public.session_user_id() or public.is_household_owner(household_id));
 
 -- budgets --------------------------------------------------------------------
 create policy budgets_select_member
   on public.budgets for select
-  to authenticated
+  to anon
   using (public.is_household_member(household_id));
 
 create policy budgets_insert_owner
   on public.budgets for insert
-  to authenticated
-  with check (public.is_household_owner(household_id) and created_by = auth.uid());
+  to anon
+  with check (public.is_household_owner(household_id) and created_by = public.session_user_id());
 
 create policy budgets_update_owner
   on public.budgets for update
-  to authenticated
+  to anon
   using (public.is_household_owner(household_id))
   with check (public.is_household_owner(household_id));
 
 create policy budgets_delete_owner
   on public.budgets for delete
-  to authenticated
+  to anon
   using (public.is_household_owner(household_id));
 
--- invitations ----------------------------------------------------------------
--- Deliberately policy-free: RLS enabled with zero policies means no client role
--- can read or write invitations. All access goes through the Edge Functions,
--- which run with the service role and enforce owner checks in code.
-revoke all on public.invitations from anon, authenticated;
-
 -- ---------------------------------------------------------------------------
--- Table privileges: authenticated only. Anonymous visitors have no data access.
+-- Table privileges: only the anon role (client requests) gets access, and RLS
+-- does the actual per-session guarding. password_hash stays unreachable
+-- through column-level grants on profiles; sessions/login_attempts are never
+-- granted at all (see 000050_custom_auth.sql).
 -- ---------------------------------------------------------------------------
 revoke all on public.profiles, public.households, public.household_members,
-  public.categories, public.expenses, public.budgets
-  from anon;
+  public.categories, public.expenses, public.budgets from anon, authenticated;
 
-grant select, insert, update, delete on public.profiles to authenticated;
-grant select, insert, update, delete on public.households to authenticated;
-grant select, insert, update, delete on public.household_members to authenticated;
-grant select, insert, update, delete on public.categories to authenticated;
-grant select, insert, update, delete on public.expenses to authenticated;
-grant select, insert, update, delete on public.budgets to authenticated;
+grant select (id, display_name, avatar_url, email, username, created_at, updated_at)
+  on public.profiles to anon;
+grant update (display_name, avatar_url) on public.profiles to anon;
+
+grant select, insert, update, delete on public.households to anon;
+grant select, insert, update, delete on public.household_members to anon;
+grant select, insert, update, delete on public.categories to anon;
+grant select, insert, update, delete on public.expenses to anon;
+grant select, insert, update, delete on public.budgets to anon;
+
+
+
+
 

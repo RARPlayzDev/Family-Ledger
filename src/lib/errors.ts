@@ -22,15 +22,8 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
 };
 
 const RPC_MESSAGES: Record<string, string> = {
-  invalid_invitation: 'This invitation link is not valid.',
-  revoked: 'This invitation was revoked by the household owner.',
-  expired: 'This invitation has expired. Ask the household owner for a new one.',
-  already_used: 'This invitation has already been used.',
-  email_mismatch: 'Sign in with the invited email address to accept this invitation.',
   not_owner: 'Only the household owner can do that.',
   unauthenticated: 'Your session has expired. Please sign in again.',
-  not_configured: 'The invitation service is not configured on the server.',
-  unknown_action: 'The invitation service rejected that request.',
 };
 
 type LooseError = {
@@ -44,6 +37,15 @@ function asMessage(value: unknown): string | null {
 }
 
 function fromDatabaseError(message: string, code: string | null): NormalizedError {
+  // RLS denials for a missing/expired session arrive as "permission denied
+  // for table X". Raised business messages (same SQLSTATE) keep their text.
+  if (code === '42501' && message.includes('permission denied')) {
+    return {
+      message: 'Your session has expired or you do not have access. Sign in again.',
+      code,
+      isAuthError: true,
+    };
+  }
   const matchedConstraint = Object.entries(CONSTRAINT_MESSAGES).find(([key]) =>
     code ? code === key || message.includes(key) : message.includes(key),
   );

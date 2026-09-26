@@ -50,6 +50,4 @@ export const queryKeys = {
     ['monthly-insights', householdId, monthKey] as const,
   budgets: (householdId: string, periodMonth: string) =>
     ['budgets', householdId, periodMonth] as const,
-  invitations: (householdId: string) => ['invitations', householdId] as const,
-  invitationPreview: (token: string) => ['invitation-preview', token] as const,
 };

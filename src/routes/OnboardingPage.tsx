@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { Building, CheckCircle2, IndianRupee, LogOut, Plus, Users } from 'lucide-react';
+import { CheckCircle2, IndianRupee, LogOut, Plus, Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from '@/hooks/use-session';
 import { useHousehold } from '@/hooks/use-household';
-import { useCreateHousehold } from '@/hooks/use-members';
-import { useInvitationPreview, useAcceptInvitation } from '@/hooks/use-invitations';
+import { useCreateHousehold, useJoinHousehold } from '@/hooks/use-members';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/errors';
+import { isValidJoinCode, normalizeJoinCode } from '@/lib/join-code';
 
 export function OnboardingPage() {
   const { userId, displayName, signOut } = useSession();
@@ -21,24 +20,23 @@ export function OnboardingPage() {
   const [searchParams] = useSearchParams();
   const { push: pushToast } = useToast();
 
-  const tokenParam = searchParams.get('token') ?? searchParams.get('invite') ?? '';
-  const [inviteToken, setInviteToken] = useState(tokenParam);
-  const [activeTab, setActiveTab] = useState<'create' | 'join'>(tokenParam ? 'join' : 'create');
+  const joinParam = searchParams.get('join') ?? '';
+  const [joinCode, setJoinCode] = useState(normalizeJoinCode(joinParam));
+  const [activeTab, setActiveTab] = useState<'create' | 'join'>(joinParam ? 'join' : 'create');
 
   // Create household form state
   const [householdName, setHouseholdName] = useState('');
   const [timezone, setTimezone] = useState('Asia/Kolkata');
 
   const createHouseholdMutation = useCreateHousehold();
-  const previewQuery = useInvitationPreview(inviteToken || null);
-  const acceptMutation = useAcceptInvitation();
+  const joinMutation = useJoinHousehold();
 
   useEffect(() => {
-    if (tokenParam) {
-      setInviteToken(tokenParam);
+    if (joinParam) {
+      setJoinCode(normalizeJoinCode(joinParam));
       setActiveTab('join');
     }
-  }, [tokenParam]);
+  }, [joinParam]);
 
   if (hasHousehold) {
     return <Navigate to="/app" replace />;
@@ -70,14 +68,24 @@ export function OnboardingPage() {
     }
   };
 
-  const handleAcceptInvite = async () => {
-    if (!inviteToken) return;
+  const handleJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = normalizeJoinCode(joinCode);
+    if (!isValidJoinCode(code)) {
+      pushToast({
+        title: 'Invalid join code',
+        description: 'Enter the 6-character code from your household owner.',
+        tone: 'error',
+      });
+      return;
+    }
     try {
-      await acceptMutation.mutateAsync(inviteToken);
+      const joined = await joinMutation.mutateAsync(code);
+      setActiveHouseholdId(joined.household_id);
       await refresh();
       pushToast({
         title: 'Welcome to the family!',
-        description: 'You joined the household successfully.',
+        description: `You joined ${joined.name}.`,
         tone: 'success',
       });
       navigate('/app', { replace: true });
@@ -116,7 +124,7 @@ export function OnboardingPage() {
             Welcome, {displayName}!
           </h1>
           <p className="text-sm text-content-muted">
-            To start tracking shared expenses, create your household or join one using an invitation.
+            To start tracking shared expenses, create your household or join one with a join code.
           </p>
         </div>
 
@@ -126,7 +134,7 @@ export function OnboardingPage() {
               <Plus className="size-3.5" /> Create household
             </TabsTrigger>
             <TabsTrigger value="join">
-              <Users className="size-3.5" /> Join with invite
+              <Users className="size-3.5" /> Join with code
             </TabsTrigger>
           </TabsList>
 
@@ -186,64 +194,35 @@ export function OnboardingPage() {
               <CardHeader>
                 <CardTitle>Join a household</CardTitle>
                 <CardDescription>
-                  Enter the invitation code or token provided by your household owner.
+                  Enter the 6-character join code from your household owner - or open the invite
+                  link they shared with you and it fills in automatically.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="invite-token-input">Invitation code or token</Label>
-                  <Input
-                    id="invite-token-input"
-                    placeholder="Paste the invitation token"
-                    value={inviteToken}
-                    onChange={(e) => setInviteToken(e.target.value.trim())}
-                  />
-                </div>
-
-                {inviteToken && (
-                  <div className="rounded-lg border border-line bg-surface/50 p-4">
-                    {previewQuery.isLoading ? (
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-48" />
-                      </div>
-                    ) : previewQuery.isError ? (
-                      <p className="text-xs text-danger">
-                        {errorMessage(previewQuery.error)}
-                      </p>
-                    ) : previewQuery.data ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-10 items-center justify-center rounded-lg bg-accent-soft text-accent">
-                            <Building className="size-5" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-content">
-                              {previewQuery.data.householdName ?? 'Household'}
-                            </p>
-                            <p className="text-2xs text-content-muted">
-                              Status: {previewQuery.data.status}
-                            </p>
-                          </div>
-                        </div>
-
-                        {previewQuery.data.status === 'pending' ? (
-                          <Button
-                            className="w-full"
-                            onClick={handleAcceptInvite}
-                            loading={acceptMutation.isPending}
-                          >
-                            <CheckCircle2 className="size-4" /> Accept & Join Ledger
-                          </Button>
-                        ) : (
-                          <p className="text-xs text-warn">
-                            This invitation is {previewQuery.data.status} and can no longer be used.
-                          </p>
-                        )}
-                      </div>
-                    ) : null}
+              <CardContent>
+                <form onSubmit={handleJoin} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="join-code-input">Join code</Label>
+                    <Input
+                      id="join-code-input"
+                      placeholder="e.g. XK3P9D"
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(normalizeJoinCode(e.target.value))}
+                      maxLength={6}
+                      required
+                    />
+                    <p className="text-2xs text-content-subtle">
+                      Ask the family owner for the code, or tap the invite link they sent you on
+                      WhatsApp/SMS - no email needed.
+                    </p>
                   </div>
-                )}
+
+                  <Button type="submit" className="w-full" loading={joinMutation.isPending}>
+                    <CheckCircle2 className="size-4" /> Join household
+                  </Button>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>

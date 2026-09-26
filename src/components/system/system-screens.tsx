@@ -49,8 +49,8 @@ export function ConfigurationNotice() {
 VITE_SUPABASE_ANON_KEY=<anon or sb_publishable_... key>`}
           </pre>
           <p className="text-xs">
-            Only the public anon/publishable key belongs in the browser bundle. The service-role key
-            must never be exposed; it is used exclusively by the invitation Edge Function.
+            Only the public anon/publishable key belongs in the browser bundle. Secret keys
+            must never be exposed to client code.
           </p>
         </CardContent>
       </Card>

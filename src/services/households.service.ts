@@ -4,7 +4,7 @@ import type { HouseholdRole, ProfileRow } from '@/types/database';
 
 /** Reads and writes of the account profile and its household memberships. */
 
-const PROFILE_SELECT = 'id, display_name, avatar_url, created_at, updated_at';
+const PROFILE_SELECT = 'id, email, username, display_name, avatar_url, created_at, updated_at';
 
 export async function getProfile(userId: string): Promise<ProfileRow | null> {
   const { data, error } = await getSupabase()
@@ -35,7 +35,7 @@ export async function listMemberships(userId: string): Promise<HouseholdMembersh
   const { data, error } = await getSupabase()
     .from('household_members')
     .select(
-      'role, joined_at, household:households!household_members_household_id_fkey(id, name, owner_id, currency_code, timezone, created_at, updated_at)',
+      'role, joined_at, household:households!household_members_household_id_fkey(id, name, owner_id, currency_code, timezone, join_code, created_at, updated_at)',
     )
     .eq('user_id', userId)
     .order('joined_at', { ascending: true })
@@ -61,7 +61,7 @@ export async function createHousehold(input: {
       owner_id: input.ownerId,
       timezone: input.timezone,
     })
-    .select('id, name, owner_id, currency_code, timezone, created_at, updated_at')
+    .select('id, name, owner_id, currency_code, timezone, join_code, created_at, updated_at')
     .single();
   if (error) throw error;
 

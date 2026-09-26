@@ -39,3 +39,17 @@ export async function addExistingMember(
     .insert({ household_id: householdId, user_id: memberUserId, role: 'member' });
   if (error) throw error;
 }
+
+/**
+ * Joins a household through its shareable join code (join_by_code RPC).
+ * Knowing the code IS the authorization; the acting account comes from the
+ * session header on the server.
+ */
+export async function joinHouseholdByCode(
+  code: string,
+): Promise<{ household_id: string; name: string }> {
+  const { data, error } = await getSupabase().rpc('join_by_code', { p_code: code });
+  if (error) throw error;
+  if (!data) throw new Error('That join code is not valid.');
+  return data;
+}

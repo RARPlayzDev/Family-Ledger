@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createQueryClient } from '@/lib/query-client';
 import { supabaseEnv } from '@/lib/env';
-import { isAuthCallback } from '@/lib/auth-error';
 import { SessionProvider } from '@/hooks/use-session';
 import { HouseholdProvider } from '@/hooks/use-household';
 import { ToastProvider } from '@/hooks/use-toast';
@@ -24,22 +23,10 @@ import { MembersPage } from '@/routes/MembersPage';
 import { SettingsPage } from '@/routes/SettingsPage';
 
 /**
- * Landing route. Supabase email links bounce here with either a PKCE `?code=`
- * (successful verification) or `?error=...` params (expired/used links). Both
- * must reach /auth with parameters intact: supabase-js exchanges the code on
- * that URL (detectSessionInUrl), and the sign-in screen explains failures.
- * Everything else goes to /app.
+ * Landing route. Everything simply enters the app; an active session (or the
+ * sign-in screen) takes over from there.
  */
 function RootRedirect() {
-  const location = useLocation();
-  if (isAuthCallback(location.search, location.hash)) {
-    return (
-      <Navigate
-        to={{ pathname: '/auth', search: location.search, hash: location.hash }}
-        replace
-      />
-    );
-  }
   return <Navigate to="/app" replace />;
 }
 

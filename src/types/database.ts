@@ -1,10 +1,15 @@
 /**
  * FamilyLedger database types.
  *
- * These mirror supabase/migrations exactly and are shared by the browser app and
- * the invitation Edge Function. Regenerate with `supabase gen types typescript`
- * whenever the migrations change, then keep the migration files as the source of
- * truth: this file exists so the app never has to fall back to `any`.
+ * These mirror supabase/migrations exactly and are shared by the browser app.
+ * Regenerate with `supabase gen types typescript` whenever the migrations
+ * change, then keep the migration files as the source of truth: this file
+ * exists so the app never has to fall back to `any`.
+ *
+ * Custom auth: profiles IS the user table (email/username; password_hash is
+ * deliberately absent from these types - no client code may touch it), and the
+ * sign_up/login/resolve_session/logout/join_by_code RPCs are listed under
+ * Functions.
  *
  * NOTE: object shapes are declared as *type aliases* (not interfaces) because
  * supabase-js requires row types to be assignable to Record<string, unknown>.
@@ -15,10 +20,27 @@ export type PaymentMethod = 'upi' | 'cash' | 'card' | 'bank_transfer' | 'other';
 
 export type ProfileRow = {
   id: string;
+  email: string;
+  username: string;
   display_name: string;
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+  // password_hash exists in the table but is intentionally NOT typed here:
+  // column-level grants keep it away from every client query.
+};
+
+/** Shape returned by the sign_up/login/resolve_session RPCs. */
+export type AuthSessionRpc = {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    created_at: string;
+  };
 };
 
 export type HouseholdRow = {
@@ -27,6 +49,7 @@ export type HouseholdRow = {
   owner_id: string;
   currency_code: string;
   timezone: string;
+  join_code: string;
   created_at: string;
   updated_at: string;
 };
@@ -74,37 +97,24 @@ export type BudgetRow = {
   updated_at: string;
 };
 
-export type InvitationRow = {
-  id: string;
-  household_id: string;
-  email: string;
-  role: HouseholdRole;
-  token_hash: string;
-  expires_at: string;
-  accepted_at: string | null;
-  accepted_by: string | null;
-  revoked_at: string | null;
-  created_by: string;
-  created_at: string;
-};
 export type Database = {
   public: {
     Tables: {
       profiles: {
         Row: ProfileRow;
         Insert: {
-          id: string;
+          id?: string;
+          email: string;
+          username: string;
+          password_hash: string;
           display_name?: string;
           avatar_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
-          id?: string;
           display_name?: string;
           avatar_url?: string | null;
-          created_at?: string;
-          updated_at?: string;
         };
         Relationships: [];
       };
@@ -116,6 +126,7 @@ export type Database = {
           owner_id: string;
           currency_code?: string;
           timezone?: string;
+          join_code?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -124,6 +135,7 @@ export type Database = {
           owner_id?: string;
           timezone?: string;
           currency_code?: string;
+          join_code?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -280,41 +292,25 @@ export type Database = {
           },
         ];
       };
-      invitations: {
-        Row: InvitationRow;
-        Insert: {
-          id?: string;
-          household_id: string;
-          email: string;
-          role?: HouseholdRole;
-          token_hash: string;
-          expires_at: string;
-          accepted_at?: string | null;
-          accepted_by?: string | null;
-          revoked_at?: string | null;
-          created_by: string;
-          created_at?: string;
-        };
-        Update: {
-          accepted_at?: string | null;
-          accepted_by?: string | null;
-          revoked_at?: string | null;
-          expires_at?: string;
-          email?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'invitations_household_id_fkey';
-            columns: ['household_id'];
-            isOneToOne: false;
-            referencedRelation: 'households';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
     };
     Views: Record<string, never>;
     Functions: {
+      sign_up: {
+        Args: {
+          p_email: string;
+          p_username: string;
+          p_password: string;
+          p_display_name?: string;
+        };
+        Returns: AuthSessionRpc;
+      };
+      login: { Args: { p_identifier: string; p_password: string }; Returns: AuthSessionRpc };
+      resolve_session: { Args: { p_token: string }; Returns: AuthSessionRpc };
+      logout: { Args: { p_token: string }; Returns: undefined };
+      join_by_code: {
+        Args: { p_code: string };
+        Returns: { household_id: string; name: string };
+      };
       is_household_member: { Args: { p_household_id: string }; Returns: boolean };
       is_household_owner: { Args: { p_household_id: string }; Returns: boolean };
       shares_household_with: { Args: { p_user_id: string }; Returns: boolean };

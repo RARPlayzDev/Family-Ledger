@@ -141,7 +141,7 @@ revoke all on function public.household_category_totals(uuid, date, date) from p
 revoke all on function public.household_member_totals(uuid, date, date) from public, anon;
 revoke all on function public.household_daily_totals(uuid, date, date) from public, anon;
 
-grant execute on function public.household_period_totals(uuid, date, date) to authenticated;
-grant execute on function public.household_category_totals(uuid, date, date) to authenticated;
-grant execute on function public.household_member_totals(uuid, date, date) to authenticated;
-grant execute on function public.household_daily_totals(uuid, date, date) to authenticated;
+grant execute on function public.household_period_totals(uuid, date, date) to anon;
+grant execute on function public.household_category_totals(uuid, date, date) to anon;
+grant execute on function public.household_member_totals(uuid, date, date) to anon;
+grant execute on function public.household_daily_totals(uuid, date, date) to anon;

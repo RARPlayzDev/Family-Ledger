@@ -4,11 +4,9 @@ import {
   Copy,
   Crown,
   LogOut,
-  Mail,
   MoreVertical,
   Plus,
   Shield,
-  Trash2,
   UserCheck,
   UserX,
 } from 'lucide-react';
@@ -17,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -46,70 +43,48 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { useHousehold } from '@/hooks/use-household';
 import { useSession } from '@/hooks/use-session';
-import { useInvitations, useCreateInvitation, useRevokeInvitation } from '@/hooks/use-invitations';
 import { useRemoveMember, useLeaveHousehold, useTransferOwnership } from '@/hooks/use-members';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/errors';
+import { buildJoinLink } from '@/lib/join-code';
+import { appOrigin } from '@/lib/env';
 import type { HouseholdMember } from '@/types/domain';
 
 export function MembersPage() {
-  const { householdId, householdName, isOwner, members, membersLoading, refresh } = useHousehold();
+  const {
+    householdId,
+    householdName,
+    isOwner,
+    members,
+    membersLoading,
+    refresh,
+    activeMembership,
+  } = useHousehold();
   const { userId } = useSession();
   const { push: pushToast } = useToast();
 
-  const invitationsQuery = useInvitations(householdId, isOwner);
-  const createInviteMutation = useCreateInvitation();
-  const revokeInviteMutation = useRevokeInvitation();
   const removeMemberMutation = useRemoveMember();
   const leaveHouseholdMutation = useLeaveHousehold();
   const transferOwnershipMutation = useTransferOwnership();
 
+  const joinCode = activeMembership?.household.join_code ?? '';
+  const joinLink = joinCode ? buildJoinLink(appOrigin(), joinCode) : '';
+
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [createdInviteUrl, setCreatedInviteUrl] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
   const [memberToRemove, setMemberToRemove] = useState<HouseholdMember | null>(null);
   const [memberToTransfer, setMemberToTransfer] = useState<HouseholdMember | null>(null);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
-
-  const pendingInvitations = (invitationsQuery.data?.invitations ?? []).filter(
-    (inv) => inv.status === 'pending',
-  );
-  const handleCreateInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!householdId || !inviteEmail.trim()) return;
-
-    try {
-      const result = await createInviteMutation.mutateAsync({
-        householdId,
-        email: inviteEmail.trim(),
-        expiresInDays: 7,
-      });
-      setCreatedInviteUrl(result.inviteUrl);
-      pushToast({
-        title: 'Invitation created',
-        description: `Invite link generated for ${result.invitation.email}.`,
-        tone: 'success',
-      });
-    } catch (err) {
-      pushToast({
-        title: 'Could not create invitation',
-        description: errorMessage(err),
-        tone: 'error',
-      });
-    }
-  };
-
   const handleCopyLink = async () => {
-    if (!createdInviteUrl) return;
+    if (!joinLink) return;
     try {
-      await navigator.clipboard.writeText(createdInviteUrl);
+      await navigator.clipboard.writeText(joinLink);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
       pushToast({
-        title: 'Link copied',
-        description: 'Share this link with your family member.',
+        title: 'Invite link copied',
+        description: 'Share it with your family member - no email needed.',
         tone: 'success',
       });
     } catch {
@@ -121,18 +96,19 @@ export function MembersPage() {
     }
   };
 
-  const handleRevokeInvite = async (invitationId: string) => {
-    if (!householdId) return;
+  const handleCopyCode = async () => {
+    if (!joinCode) return;
     try {
-      await revokeInviteMutation.mutateAsync({ householdId, invitationId });
+      await navigator.clipboard.writeText(joinCode);
       pushToast({
-        title: 'Invitation revoked',
+        title: 'Join code copied',
+        description: `Code ${joinCode} copied to your clipboard.`,
         tone: 'success',
       });
-    } catch (err) {
+    } catch {
       pushToast({
-        title: 'Could not revoke invitation',
-        description: errorMessage(err),
+        title: 'Failed to copy',
+        description: 'Please copy the code manually.',
         tone: 'error',
       });
     }
@@ -216,11 +192,7 @@ export function MembersPage() {
           isOwner && (
             <Button
               size="sm"
-              onClick={() => {
-                setCreatedInviteUrl(null);
-                setInviteEmail('');
-                setInviteModalOpen(true);
-              }}
+              onClick={() => setInviteModalOpen(true)}
             >
               <Plus />
               <span className="hidden sm:inline">Invite family member</span>
@@ -349,136 +321,68 @@ export function MembersPage() {
         </CardContent>
       </Card>
 
-      {isOwner && (
-        <Card className="overflow-hidden">
-          <CardHeader>
-            <CardTitle>Pending invitations</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {pendingInvitations.length === 0 ? (
-              <p className="p-4 text-xs text-content-subtle">No pending invitations.</p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {pendingInvitations.map((inv) => (
-                  <li
-                    key={inv.id}
-                    className="flex items-center justify-between gap-3 p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-9 items-center justify-center rounded-full bg-surface-active text-content-muted">
-                        <Mail className="size-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-content">{inv.email}</p>
-                        <p className="text-2xs text-content-subtle">
-                          Expires {new Date(inv.expiresAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
-                        </p>
-                      </div>
-                    </div>
+          {isOwner && joinCode && (
+            <Card className="overflow-hidden">
+              <CardHeader>
+                <CardTitle>Invite family members</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-content-muted">
+                  Share this join code or invite link - anyone who opens the link can join{" "}
+                  {householdName}. Send it on WhatsApp or SMS; no email required.
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-lg border border-line bg-surface-active px-4 py-2 font-mono text-lg font-semibold tracking-[0.3em] text-content">
+                    {joinCode}
+                  </span>
+                  <Button size="sm" onClick={handleCopyCode}>
+                    <Copy className="size-4" />
+                    <span className="hidden sm:inline">Copy code</span>
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleCopyLink}>
+                    <Copy className="size-4" />
+                    <span className="hidden sm:inline">Copy link</span>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-                    <div className="flex items-center gap-2">
-                      <Badge tone="warn">Pending</Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRevokeInvite(inv.id)}
-                        title="Revoke invitation"
-                      >
-                        <Trash2 className="size-3.5 text-danger" />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Invite Member Dialog */}
-      <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Invite family member</DialogTitle>
-            <DialogDescription>
-              Generate an invitation link to grant access to the shared household ledger.
-            </DialogDescription>
-          </DialogHeader>
-
-          {!createdInviteUrl ? (
-            <form onSubmit={handleCreateInvite} className="space-y-4 py-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="invite-email">Email address</Label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  placeholder="family.member@example.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  required
-                  autoFocus
-                />
+          {/* Share join code / invite link Dialog */}
+          <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite family member</DialogTitle>
+                <DialogDescription>
+                  Share this join code or invite link to grant access to the shared household ledger.
+                  Anyone holding the link can join.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="flex justify-center">
+                  <span className="rounded-lg border border-line bg-surface-active px-6 py-3 font-mono text-2xl font-semibold tracking-[0.35em] text-content">
+                    {joinCode}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input readOnly value={joinLink} className="font-mono text-2xs selection:bg-accent-soft" />
+                  <Button type="button" variant="secondary" size="sm" onClick={handleCopyLink}>
+                    {copiedLink ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
+                    {copiedLink ? 'Copied' : 'Copy'}
+                  </Button>
+                </div>
                 <p className="text-2xs text-content-subtle">
-                  The invitation link is cryptographically signed and expires in 7 days.
+                  No email needed - send it on WhatsApp, SMS or show the code in person. It works for
+                  anyone who hasn't joined yet.
                 </p>
-              </div>
-
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setInviteModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" loading={createInviteMutation.isPending}>
-                  Create invite link
-                </Button>
-              </DialogFooter>
-            </form>
-          ) : (
-            <div className="space-y-4 py-2">
-              <div className="rounded-md border border-accent/30 bg-accent-soft p-3">
-                <p className="text-xs font-medium text-content">Invitation link generated!</p>
-                <p className="mt-1 text-2xs text-content-muted">
-                  Share this link with {inviteEmail}. Once accepted, they can record and view
-                  household expenses.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Input
-                  readOnly
-                  value={createdInviteUrl}
-                  className="font-mono text-2xs selection:bg-accent-soft"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleCopyLink}
-                >
-                  {copiedLink ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
-                  {copiedLink ? 'Copied' : 'Copy'}
-                </Button>
-              </div>
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setInviteModalOpen(false);
-                    setCreatedInviteUrl(null);
-                    setInviteEmail('');
-                  }}
-                >
+                <Button type="button" onClick={() => setInviteModalOpen(false)}>
                   Done
                 </Button>
               </DialogFooter>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            </DialogContent>
+          </Dialog>
 
       {/* Remove Member Confirmation */}
       <AlertDialog
@@ -558,4 +462,3 @@ export function MembersPage() {
     </div>
   );
 }
-

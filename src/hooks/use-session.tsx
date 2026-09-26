@@ -1,29 +1,30 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Session } from '@supabase/supabase-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
+import { onSessionTokenChange } from '@/lib/supabase';
 import {
-  getCurrentSession,
-  onAuthStateChange,
+  resolveStoredSession,
   signOut as signOutRequest,
+  type AppSession,
 } from '@/services/auth.service';
 import { getProfile } from '@/services/households.service';
 import type { ProfileRow } from '@/types/database';
 
 /**
- * Session + profile context.
+ * Session + profile context (custom auth).
  *
- * The session itself is owned by supabase-js (see lib/supabase.ts); this provider
- * mirrors it into React state and loads the matching profile row, so no component
- * reads auth storage directly.
+ * The session token is owned by lib/supabase.ts; this provider resolves it
+ * against the `resolve_session` RPC on boot, re-resolves whenever the token
+ * changes (sign-in/sign-out), and loads the matching profile row. No component
+ * reads storage directly.
  */
 
 export type SessionStatus = 'loading' | 'unauthenticated' | 'authenticated';
 
 export type SessionContextValue = {
   status: SessionStatus;
-  session: Session | null;
+  session: AppSession | null;
   userId: string | null;
   email: string | null;
   profile: ProfileRow | null;
@@ -38,38 +39,49 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<SessionStatus>('loading');
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<AppSession | null>(null);
   const queryClient = useQueryClient();
-  const userId = session?.user?.id ?? null;
+  const userId = session?.user.id ?? null;
+  const previousUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    // 1. Resolve the persisted session once (handles PKCE callbacks too).
-    getCurrentSession()
-      .then((current) => {
+    const resolve = async () => {
+      try {
+        const current = await resolveStoredSession();
         if (!active) return;
+        // A different account (or sign-out) must not see the previous cache.
+        const nextUserId = current?.user.id ?? null;
+        if (nextUserId !== previousUserIdRef.current) {
+          queryClient.clear();
+          previousUserIdRef.current = nextUserId;
+        }
         setSession(current);
         setStatus(current ? 'authenticated' : 'unauthenticated');
-      })
-      .catch(() => {
+      } catch {
         if (!active) return;
         setSession(null);
         setStatus('unauthenticated');
-      });
+      }
+    };
 
-    // 2. Follow every later auth event (sign in, refresh, sign out, recovery).
-    const unsubscribe = onAuthStateChange((next) => {
-      if (!active) return;
-      setSession(next);
-      setStatus(next ? 'authenticated' : 'unauthenticated');
+    // 1. Resolve the persisted session once on boot.
+    void resolve();
+
+    // 2. Re-resolve whenever the token changes (sign-in, sign-out). Status
+    //    flips to 'loading' first so route guards show the loading screen
+    //    instead of bouncing between /auth and /app mid-transition.
+    const unsubscribe = onSessionTokenChange(() => {
+      setStatus('loading');
+      void resolve();
     });
 
     return () => {
       active = false;
       unsubscribe();
     };
-  }, []);
+  }, [queryClient]);
 
   const profileQuery = useQuery({
     queryKey: queryKeys.profile(userId ?? 'anonymous'),
@@ -92,18 +104,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       status,
       session,
       userId,
-      email: session?.user?.email ?? null,
+      email: session?.user.email ?? null,
       profile: profileQuery.data ?? null,
       profileLoading: profileQuery.isLoading,
       displayName:
         profileQuery.data?.display_name ??
-        session?.user?.email?.split('@')[0] ??
+        session?.user.display_name ??
         'Member',
       profileError: profileQuery.error ? 'Could not load your profile.' : null,
       refreshProfile,
       signOut,
     }),
-    [status, session, userId, profileQuery.data, profileQuery.isLoading, profileQuery.error, refreshProfile, signOut],
+    [
+      status,
+      session,
+      userId,
+      profileQuery.data,
+      profileQuery.isLoading,
+      profileQuery.error,
+      refreshProfile,
+      signOut,
+    ],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

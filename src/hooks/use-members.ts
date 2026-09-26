@@ -6,7 +6,7 @@ import {
   updateHousehold,
   updateProfile,
 } from '@/services/households.service';
-import { leaveHousehold, removeHouseholdMember } from '@/services/members.service';
+import { leaveHousehold, joinHouseholdByCode, removeHouseholdMember } from '@/services/members.service';
 
 /** Profile, household and membership mutations. */
 
@@ -76,6 +76,18 @@ export function useLeaveHousehold() {
   return useMutation({
     mutationFn: (input: { householdId: string; memberUserId: string }) =>
       leaveHousehold(input.householdId, input.memberUserId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['memberships'] });
+      void queryClient.invalidateQueries({ queryKey: ['household-members'] });
+    },
+  });
+}
+
+/** Join a household via its 6-character join code. */
+export function useJoinHousehold() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => joinHouseholdByCode(code),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['memberships'] });
       void queryClient.invalidateQueries({ queryKey: ['household-members'] });

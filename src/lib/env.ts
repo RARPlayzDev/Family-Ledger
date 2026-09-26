@@ -71,7 +71,7 @@ export const supabaseEnv: SupabaseEnvCheck = checkSupabaseEnv(
 export const APP_NAME = 'FamilyLedger';
 export const DEFAULT_TIMEZONE = 'Asia/Kolkata';
 
-/** Absolute URL used for Supabase auth redirects (password reset). */
+/** Absolute app origin (used for shareable household join links). */
 export function appOrigin(): string {
   return typeof window === 'undefined' ? '' : window.location.origin;
 }

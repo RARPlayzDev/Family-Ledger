@@ -30,7 +30,6 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 
-# The single invitation Edge Function. Signature verification is enabled so the
-# platform rejects unauthenticated calls before our code runs.
-[functions.invitations]
-verify_jwt = true
+# No Edge Functions remain: household joining uses join codes resolved by SQL
+# RPCs (join_by_code), and auth is custom (sign_up/login RPCs). Nothing server-
+# side holds a service-role key anymore.
