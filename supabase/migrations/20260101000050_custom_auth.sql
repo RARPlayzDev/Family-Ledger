@@ -60,10 +60,14 @@ language sql
 stable
 set search_path = public, extensions, pg_temp
 as $$
-  select e.value
-  from json_each(
-    coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json
-  ) as e
+  select hdr.headers_json ->> e.key
+  from (
+    select coalesce(
+      nullif(current_setting('request.headers', true), ''),
+      '{}'
+    )::json as headers_json
+  ) as hdr,
+  lateral json_each(hdr.headers_json) as e
   where lower(e.key) = 'x-familyledger-session'
   limit 1
 $$;
