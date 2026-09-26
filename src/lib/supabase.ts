@@ -26,6 +26,7 @@ export class AppConfigurationError extends Error {
  * fresh header.
  */
 const TOKEN_STORAGE_KEY = 'familyledger-session-token';
+const CACHED_USER_KEY = 'familyledger-session-user';
 const LEGACY_AUTH_STORAGE_KEY = 'familyledger-auth';
 export const SESSION_HEADER = 'x-familyledger-session';
 
@@ -58,9 +59,39 @@ export function getSessionToken(): string | null {
   return readStoredToken();
 }
 
-/** Installs (or clears) the session token and notifies subscribers. */
-export function setSessionToken(token: string | null): void {
+/**
+ * JSON of the profile cached at sign-in. Lets a reload boot straight into the
+ * app (even offline); resolve_session refreshes it quietly when reachable.
+ */
+export function getCachedSessionUserJson(): string | null {
+  try {
+    return window.localStorage.getItem(CACHED_USER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Refreshes the cached profile WITHOUT notifying session listeners. */
+export function setCachedSessionUserJson(json: string | null): void {
+  try {
+    if (json) {
+      window.localStorage.setItem(CACHED_USER_KEY, json);
+    } else {
+      window.localStorage.removeItem(CACHED_USER_KEY);
+    }
+  } catch {
+    // Storage unavailable: resolve_session will repopulate it when reachable.
+  }
+}
+
+/**
+ * Installs (or clears) the session and notifies subscribers.
+ * The profile (when given) is cached alongside the token; clearing the token
+ * clears the cache too, so token and profile can never diverge.
+ */
+export function setSessionToken(token: string | null, user?: unknown): void {
   writeStoredToken(token);
+  setCachedSessionUserJson(token && user ? JSON.stringify(user) : null);
   cachedClient = null;
   for (const listener of tokenListeners) listener();
 }

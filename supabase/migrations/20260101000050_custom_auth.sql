@@ -24,14 +24,13 @@ create extension if not exists pgcrypto with schema extensions;
 create table public.sessions (
   token_hash text primary key check (token_hash ~ '^[0-9a-f]{64}$'),
   user_id uuid not null references public.profiles (id) on delete cascade,
-  created_at timestamptz not null default now(),
-  expires_at timestamptz not null check (expires_at > created_at)
+  created_at timestamptz not null default now()
 );
 
 create index sessions_user_id_idx on public.sessions (user_id);
 
 comment on table public.sessions is
-  'SHA-256 of the session token issued by sign_up/login. Raw tokens never hit the database.';
+  'SHA-256 of the session token issued by sign_up/login. Raw tokens never hit the database. Sessions never expire - logout is the only way out.';
 
 alter table public.sessions enable row level security;
 -- Deliberately zero policies: no client role can touch sessions directly.
@@ -81,7 +80,6 @@ as $$
   select s.user_id
   from public.sessions s
   where s.token_hash = encode(digest(public._request_session_token(), 'sha256'), 'hex')
-    and s.expires_at > now()
 $$;
 
 revoke all on function public._request_session_token() from public, anon;
@@ -102,12 +100,8 @@ as $$
 declare
   v_token text := encode(gen_random_bytes(32), 'hex');
 begin
-  delete from public.sessions
-   where user_id = p_user_id
-     and expires_at <= now();
-
-  insert into public.sessions (token_hash, user_id, expires_at)
-  values (encode(digest(v_token, 'sha256'), 'hex'), p_user_id, now() + interval '30 days');
+  insert into public.sessions (token_hash, user_id)
+  values (encode(digest(v_token, 'sha256'), 'hex'), p_user_id);
 
   return v_token;
 end;
@@ -268,7 +262,6 @@ as $$
   select jsonb_build_object('token', p_token, 'user', public._profile_json(s.user_id))
   from public.sessions s
   where s.token_hash = encode(digest(coalesce(p_token, ''), 'sha256'), 'hex')
-    and s.expires_at > now()
 $$;
 
 -- ---------------------------------------------------------------------------

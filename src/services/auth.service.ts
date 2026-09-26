@@ -1,4 +1,11 @@
-import { getSupabase, getSessionToken, setSessionToken } from '@/lib/supabase';
+import {
+  AppConfigurationError,
+  getCachedSessionUserJson,
+  getSupabase,
+  getSessionToken,
+  setCachedSessionUserJson,
+  setSessionToken,
+} from '@/lib/supabase';
 
 /**
  * Custom authentication (no Supabase Auth, no emails).
@@ -33,6 +40,17 @@ function toSession(result: AuthRpcResult | null): AppSession {
   return { token: result.token, user: result.user };
 }
 
+function readCachedUser(): AuthUser | null {
+  const raw = getCachedSessionUserJson();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as AuthUser;
+    return parsed && typeof parsed === 'object' && parsed.id ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Creates an account and signs in immediately (single transaction). */
 export async function signUp(input: {
   email: string;
@@ -55,7 +73,7 @@ export async function signUp(input: {
   const { data, error } = await getSupabase().rpc('sign_up', payload);
   if (error) throw error;
   const session = toSession(data);
-  setSessionToken(session.token);
+  setSessionToken(session.token, session.user);
   return session;
 }
 
@@ -67,13 +85,17 @@ export async function signIn(identifier: string, password: string): Promise<AppS
   });
   if (error) throw error;
   const session = toSession(data);
-  setSessionToken(session.token);
+  setSessionToken(session.token, session.user);
   return session;
 }
 
 /**
  * Restores the session stored in localStorage on boot.
- * Returns null when there is no token or it has expired/been revoked.
+ *
+ * Returns null ONLY when there is no token or the server confirmed the token
+ * was revoked by logging out. Network failures fall back to the profile
+ * cached at sign-in, so the user is never signed out without pressing
+ * "Sign out" themselves.
  */
 export async function resolveStoredSession(): Promise<AppSession | null> {
   const token = getSessionToken();
@@ -82,14 +104,19 @@ export async function resolveStoredSession(): Promise<AppSession | null> {
     const { data, error } = await getSupabase().rpc('resolve_session', { p_token: token });
     if (error) throw error;
     if (!data?.user) {
+      // The server confirmed this token no longer exists (logged out).
       setSessionToken(null);
       return null;
     }
+    // Refresh the cached profile quietly (no listener notification, so no
+    // re-resolve loop).
+    setCachedSessionUserJson(JSON.stringify(data.user));
     return { token, user: data.user };
-  } catch {
-    // Offline or server hiccup: do NOT destroy a possibly-valid session here;
-    // the app shows its error/retry states instead.
-    return null;
+  } catch (error) {
+    if (error instanceof AppConfigurationError) throw error;
+    // Offline or server hiccup: keep the session alive from the cached profile.
+    const cached = readCachedUser();
+    return cached ? { token, user: cached } : null;
   }
 }
 

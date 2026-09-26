@@ -3,7 +3,7 @@ import { AppConfigurationError } from '@/lib/supabase';
 export type NormalizedError = {
   message: string;
   code: string | null;
-  /** True when the failure means "sign in again". */
+  /** True when retrying cannot help (e.g. a permission denial). */
   isAuthError: boolean;
 };
 
@@ -23,7 +23,7 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
 
 const RPC_MESSAGES: Record<string, string> = {
   not_owner: 'Only the household owner can do that.',
-  unauthenticated: 'Your session has expired. Please sign in again.',
+  unauthenticated: 'Please sign in first.',
 };
 
 type LooseError = {
@@ -37,11 +37,11 @@ function asMessage(value: unknown): string | null {
 }
 
 function fromDatabaseError(message: string, code: string | null): NormalizedError {
-  // RLS denials for a missing/expired session arrive as "permission denied
-  // for table X". Raised business messages (same SQLSTATE) keep their text.
+  // Grant-level denials arrive as "permission denied for table X". Raised
+  // business messages (same SQLSTATE) keep their text.
   if (code === '42501' && message.includes('permission denied')) {
     return {
-      message: 'Your session has expired or you do not have access. Sign in again.',
+      message: 'You do not have access to that data.',
       code,
       isAuthError: true,
     };
@@ -59,7 +59,7 @@ function fromDatabaseError(message: string, code: string | null): NormalizedErro
           ? trimmed
           : 'The database rejected the request.'),
     code,
-    isAuthError: code === '42501' || message.toLowerCase().includes('jwt'),
+    isAuthError: code === '42501',
   };
 }
 
@@ -76,7 +76,7 @@ export function normalizeError(error: unknown): NormalizedError {
 
     if (code || message) {
       const text = message ?? 'The database rejected the request.';
-      // An explicit error code from the API (Edge Function or RPC) wins.
+      // An explicit error code from an RPC wins.
       if (code && RPC_MESSAGES[code]) {
         return {
           message: RPC_MESSAGES[code],
@@ -90,13 +90,6 @@ export function normalizeError(error: unknown): NormalizedError {
           message: RPC_MESSAGES[rpcKey] ?? text,
           code: rpcKey,
           isAuthError: rpcKey === 'unauthenticated',
-        };
-      }
-      if (code === 'PGRST301' || text.toLowerCase().includes('jwt expired')) {
-        return {
-          message: 'Your session has expired. Please sign in again.',
-          code: 'jwt_expired',
-          isAuthError: true,
         };
       }
       if (code?.startsWith('PGRST') || /^[0-9A-Z]{5}$/.test(code ?? '')) {

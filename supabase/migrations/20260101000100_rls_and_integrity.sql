@@ -406,7 +406,7 @@ declare
   v_name text;
 begin
   if v_user is null then
-    raise exception 'Your session has expired. Sign in again.';
+    raise exception 'Please sign in first.';
   end if;
 
   select h.id, h.name
