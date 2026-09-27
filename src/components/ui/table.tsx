@@ -5,7 +5,9 @@ import { cn } from '@/lib/utils';
 /** Table primitives for the desktop ledger view (mobile uses cards instead). */
 export const Table = forwardRef<HTMLTableElement, HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className="w-full overflow-x-auto">
+    // `overscroll-x-contain` stops a sideways swipe on a wide table from turning
+    // into a browser back-navigation gesture.
+    <div className="w-full overflow-x-auto overscroll-x-contain">
       <table
         ref={ref}
         className={cn('w-full caption-bottom border-collapse text-sm', className)}

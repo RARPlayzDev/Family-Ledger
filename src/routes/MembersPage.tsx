@@ -250,17 +250,17 @@ export function MembersPage() {
                 return (
                   <li
                     key={m.user_id}
-                    className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-surface-hover/50"
+                    className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-surface-hover/50 active:bg-surface-hover/50"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <Avatar
                         name={m.profile?.display_name ?? 'Member'}
                         src={m.profile?.avatar_url ?? null}
                         size="md"
                       />
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-content">
+                          <p className="truncate text-sm font-medium text-content">
                             {m.profile?.display_name ?? 'Member'}
                           </p>
                           {isCurrentMemberSelf && (
@@ -273,7 +273,7 @@ export function MembersPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <Badge tone={m.role === 'owner' ? 'accent' : 'neutral'}>
                         {m.role === 'owner' ? 'Owner' : 'Member'}
                       </Badge>
@@ -332,7 +332,7 @@ export function MembersPage() {
                   {householdName}. Send it on WhatsApp or SMS; no email required.
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="rounded-lg border border-line bg-surface-active px-4 py-2 font-mono text-lg font-semibold tracking-[0.3em] text-content">
+                  <span className="rounded-lg border border-line bg-surface-active px-3 py-2 font-mono text-base font-semibold tracking-[0.25em] text-content sm:px-4 sm:text-lg sm:tracking-[0.3em]">
                     {joinCode}
                   </span>
                   <Button size="sm" onClick={handleCopyCode}>
@@ -360,7 +360,7 @@ export function MembersPage() {
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="flex justify-center">
-                  <span className="rounded-lg border border-line bg-surface-active px-6 py-3 font-mono text-2xl font-semibold tracking-[0.35em] text-content">
+                  <span className="rounded-lg border border-line bg-surface-active px-4 py-3 font-mono text-xl font-semibold tracking-[0.3em] text-content sm:px-6 sm:text-2xl sm:tracking-[0.35em]">
                     {joinCode}
                   </span>
                 </div>

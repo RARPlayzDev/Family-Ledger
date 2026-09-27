@@ -332,6 +332,16 @@ erDiagram
 - **Household lifecycle** — Leaving is a plain membership delete, so `guard_household_member` refuses to drop the owner's row and ownership must be transferred first. Deleting the household is the owner-only `delete_household` RPC: it removes child rows in foreign-key order and whitelists that single owner-membership delete through a transaction-local flag, so the leave rule still holds everywhere else. Accounts are never deleted — only their membership is.
 - **Sessions** — `public.sessions` stores one row per sign-in: `token_hash` (SHA-256 of the bearer token, the primary key), `user_id` (FK to `profiles`, `ON DELETE CASCADE`) and `created_at`. The raw token exists only in the browser's localStorage and travels as the `x-familyledger-session` header, which `session_user_id()` resolves inside every policy and RPC. Rows never expire; `logout()` is what removes them. RLS is on with zero policies and all grants revoked, so no client role can read or write the table directly.
 
+- **Mobile / touch UI** — One shell serves desktop and phones: a persistent
+  sidebar from `lg` upwards, a fixed five-slot bottom bar below it, and dialogs
+  that arrive as bottom sheets on phones. Every control is at least 44px tall on
+  touch, text boxes are 16px there (below that iOS Safari zooms the page on
+  focus), `env(safe-area-inset-*)` keeps content clear of the gesture bar, and
+  the page is `overflow-x: clip` rather than `hidden` so `position: sticky` keeps
+  working for the top bar. `interactive-widget=resizes-content` in the viewport
+  meta is what lets the on-screen keyboard shrink the layout instead of covering
+  the dialog footer.
+
 ---
 
 ## 🔒 Security Model

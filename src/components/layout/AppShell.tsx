@@ -28,7 +28,9 @@ export function AppShell() {
         <TopBar />
         <main
           id="main-content"
-          className="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-4 lg:px-8 lg:pb-12 lg:pt-6"
+          // The bottom padding clears the fixed mobile navigation *and* the gesture
+          // bar, so the last row of a list is never trapped under either of them.
+          className="mx-auto w-full max-w-6xl flex-1 px-4 pt-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:px-8 lg:pb-12 lg:pt-6"
         >
           <Outlet />
         </main>

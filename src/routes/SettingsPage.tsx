@@ -567,7 +567,9 @@ export function SettingsPage() {
                   <button
                     key={color}
                     type="button"
-                    className="flex size-7 items-center justify-center rounded-full border border-line transition-transform hover:scale-110"
+                    aria-label={`Use colour ${color}`}
+                    aria-pressed={catColor === color}
+                    className="flex size-10 items-center justify-center rounded-full border border-line transition-transform hover:scale-110 active:scale-95"
                     style={{ backgroundColor: color }}
                     onClick={() => setCatColor(color)}
                   >
@@ -579,20 +581,21 @@ export function SettingsPage() {
 
             <div className="space-y-1.5">
               <Label>Icon</Label>
-              <div className="grid max-h-48 grid-cols-6 gap-2 overflow-y-auto rounded-md border border-line p-2">
+              <div className="grid max-h-48 grid-cols-4 gap-2 overflow-y-auto overscroll-contain rounded-md border border-line p-2 sm:grid-cols-6">
                 {CATEGORY_ICON_NAMES.map((name) => (
                   <button
                     key={name}
                     type="button"
-                    className={`flex flex-col items-center justify-center rounded p-2 transition-colors ${
+                    aria-pressed={catIcon === name}
+                    className={`flex min-touch flex-col items-center justify-center rounded p-2 transition-colors ${
                       catIcon === name
                         ? 'border border-accent bg-accent-soft'
-                        : 'hover:bg-surface-hover'
+                        : 'hover:bg-surface-hover active:bg-surface-hover'
                     }`}
                     onClick={() => setCatIcon(name)}
                   >
                     <CategoryIcon name={name} color={catColor} size="sm" />
-                    <span className="mt-1 max-w-[45px] truncate text-[9px] text-content-subtle">
+                    <span className="mt-1 w-full truncate text-center text-[10px] text-content-subtle">
                       {name}
                     </span>
                   </button>

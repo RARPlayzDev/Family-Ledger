@@ -81,7 +81,9 @@ export function ExpenseList({
                   {relativeDayLabel(expense.expense_date)}
                 </p>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
+              {/* Amount above its own 44px action button: the row stays legible and
+                  the menu is still reachable with a thumb. */}
+              <div className="flex shrink-0 flex-col items-end gap-0.5">
                 <Money paise={expense.amount_paise} className="text-sm font-semibold" />
                 <ExpenseRowActions expense={expense} onEdit={composer.openEdit} />
               </div>

@@ -22,9 +22,10 @@ export const SelectTrigger = forwardRef<
     ref={ref}
     aria-invalid={invalid || undefined}
     className={cn(
-      'flex min-touch w-full items-center justify-between gap-2 rounded-md border bg-surface-sunken px-3 py-2 text-sm text-content',
+      'flex min-touch w-full items-center justify-between gap-2 rounded-md border bg-surface-sunken px-3 py-2 text-base text-content sm:text-sm',
       'focus:outline-none focus:ring-1 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-60',
       'data-[placeholder]:text-content-subtle [&>span]:line-clamp-1 [&>span]:text-left',
+      'active:bg-surface-hover',
       invalid ? 'border-danger' : 'border-line',
       className,
     )}
@@ -48,7 +49,7 @@ export const SelectContent = forwardRef<
       position={position}
       sideOffset={sideOffset}
       className={cn(
-        'relative z-50 max-h-72 min-w-[10rem] overflow-hidden rounded-lg border border-line bg-surface text-content shadow-pop',
+        'relative z-50 max-h-72 min-w-[10rem] overflow-hidden overscroll-contain rounded-lg border border-line bg-surface text-content shadow-pop',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
         position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]',
         className,

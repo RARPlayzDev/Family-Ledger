@@ -40,8 +40,9 @@ export const DialogContent = forwardRef<
       ref={ref}
       className={cn(
         'fixed z-50 grid w-full gap-4 border border-line bg-surface p-4 shadow-pop',
-        // Mobile: bottom sheet
-        'inset-x-0 bottom-0 max-h-[92dvh] overflow-y-auto rounded-t-xl pb-[calc(1rem+env(safe-area-inset-bottom))]',
+        // Mobile: bottom sheet (scrollable, so a long form or the on-screen
+        // keyboard can never hide the footer buttons).
+        'inset-x-0 bottom-0 max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-xl pb-[calc(1rem+env(safe-area-inset-bottom))]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom-6 data-[state=closed]:slide-out-to-bottom-6 duration-200',
         // Desktop: centred panel
         'sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[min(34rem,calc(100vw-3rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:pb-4',

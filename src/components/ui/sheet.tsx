@@ -26,6 +26,10 @@ export const SheetContent = forwardRef<
       ref={ref}
       className={cn(
         'fixed z-50 flex flex-col gap-4 border-line bg-surface shadow-pop',
+        // `overscroll-contain` keeps a flick inside the panel from scrolling the
+        // page behind it - the classic mobile "the list moved while I dragged the
+        // drawer" bug.
+        'overscroll-contain',
         side === 'right' &&
           'inset-y-0 right-0 h-full w-[min(22rem,88vw)] border-l p-4 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right',
         side === 'left' &&

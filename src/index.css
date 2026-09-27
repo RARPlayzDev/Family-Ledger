@@ -14,16 +14,60 @@
 
   html {
     height: 100%;
-    /* Prevent horizontal overflow on small Android WebView screens. */
+    /*
+     * No horizontal overflow on small Android WebView screens.
+     *
+     * `clip` is used on purpose instead of `hidden`: `overflow-x: hidden` computes
+     * to a scroll box on <body>, which silently breaks `position: sticky` for the
+     * top bar (the header scrolled away with the page). `hidden` stays first as the
+     * fallback for WebViews older than Chrome 90, which do not know `clip`.
+     */
     overflow-x: hidden;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
     @apply bg-canvas text-content;
     min-height: 100%;
     overflow-x: hidden;
+    overflow-x: clip;
+    /* Let the page scroll instead of chaining the gesture to the WebView chrome. */
+    overscroll-behavior-y: contain;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     text-rendering: optimizeLegibility;
+  }
+
+  /* Touch: no 300ms tap delay and no accidental double-tap zoom on controls. */
+  a,
+  button,
+  label,
+  select,
+  input,
+  textarea,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+
+  /*
+   * Text boxes are 16px on phones on purpose: below that, iOS Safari zooms the
+   * page when the field is focused, and the zoomed layout is what looks broken.
+   * The form primitives (Input, Textarea, SelectTrigger) carry the same
+   * `text-base sm:text-sm` pair, since a utility class outranks this element rule.
+   */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  @media (min-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 14px;
+    }
   }
 
   #root {

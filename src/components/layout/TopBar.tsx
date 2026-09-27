@@ -23,21 +23,25 @@ export function TopBar() {
   const composer = useExpenseComposer();
 
   return (
-    <header className="sticky top-0 z-30 border-t-0 border-b border-line bg-canvas/95 backdrop-blur pt-[env(safe-area-inset-top)]">
-      <div className="flex min-h-[56px] items-center gap-3 px-4 lg:px-8">
-        <Link to="/app" className="flex items-center gap-2 lg:hidden">
-          <span className="flex size-8 items-center justify-center rounded-md bg-accent-soft text-accent">
+    <header className="sticky top-0 z-30 border-b border-line bg-canvas/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <div className="flex min-h-[56px] items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-8">
+        <Link to="/app" className="flex shrink-0 items-center gap-2 lg:hidden">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
             <Wallet className="size-4" />
           </span>
-          <span className="text-sm font-semibold text-content">FamilyLedger</span>
+          {/* The wordmark is the first thing dropped on a narrow phone: the ledger
+              name and the actions need the room more than the logo text does. */}
+          <span className="hidden text-sm font-semibold text-content sm:inline">FamilyLedger</span>
         </Link>
 
         <div className="hidden lg:block">
           <HouseholdSwitcher />
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <div className="lg:hidden">
+        <div className="ml-auto flex min-w-0 items-center gap-2">
+          {/* The only flexible element in the bar on a phone: the household name
+              truncates instead of pushing the actions off the right edge. */}
+          <div className="min-w-0 lg:hidden">
             <HouseholdSwitcher />
           </div>
 
@@ -68,7 +72,7 @@ export function TopBar() {
               <button
                 type="button"
                 aria-label="Account menu"
-                className="rounded-full transition-opacity hover:opacity-90"
+                className="flex min-touch items-center rounded-full px-0.5 transition-opacity hover:opacity-90 active:opacity-80"
               >
                 <Avatar
                   name={displayName}

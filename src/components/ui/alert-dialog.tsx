@@ -39,7 +39,9 @@ export const AlertDialogContent = forwardRef<
       ref={ref}
       className={cn(
         'fixed z-50 grid w-full gap-4 border border-line bg-surface p-5 shadow-pop',
-        'inset-x-0 bottom-0 rounded-t-xl pb-[calc(1.25rem+env(safe-area-inset-bottom))]',
+        // Never taller than the screen: on a short phone (or with the keyboard
+        // open) the dialog scrolls instead of pushing its buttons off screen.
+        'inset-x-0 bottom-0 max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-xl pb-[calc(1.25rem+env(safe-area-inset-bottom))]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom-6 data-[state=closed]:slide-out-to-bottom-6',
         'sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[min(26rem,calc(100vw-3rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:pb-5',
         className,

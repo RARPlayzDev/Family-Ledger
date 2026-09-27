@@ -31,7 +31,8 @@ export function HouseholdSwitcher() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex min-touch max-w-[60vw] items-center gap-2 rounded-md border border-line bg-surface-raised px-2.5 text-left text-sm text-content transition-colors hover:border-line-strong sm:max-w-none"
+          aria-label={`Shared ledger: ${householdName ?? 'Household'}`}
+          className="flex min-touch min-w-0 max-w-[55vw] items-center gap-2 rounded-md border border-line bg-surface-raised px-2.5 text-left text-sm text-content transition-colors hover:border-line-strong active:bg-surface-hover sm:max-w-none"
         >
           <Home className="size-4 shrink-0 text-content-subtle" />
           <span className="truncate font-medium">{householdName ?? 'Household'}</span>

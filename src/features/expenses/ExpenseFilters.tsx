@@ -59,7 +59,9 @@ export function ExpenseFilters({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[12rem] flex-1">
+        {/* Phones get two tidy rows - search, then sort + filters - instead of the
+            ragged three-row stack a single wrapping flex row used to produce. */}
+        <div className="relative w-full min-w-0 sm:min-w-[12rem] sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-content-subtle" />
           <Input
             value={filters.search ?? ''}
@@ -70,52 +72,57 @@ export function ExpenseFilters({
           />
         </div>
 
-        <Select value={sort} onValueChange={(value) => onSortChange(value as ExpenseSortKey)}>
-          <SelectTrigger className="w-full sm:w-44" aria-label="Sort transactions">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {EXPENSE_SORT_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <Select value={sort} onValueChange={(value) => onSortChange(value as ExpenseSortKey)}>
+            <SelectTrigger
+              className="min-w-0 flex-1 sm:w-44 sm:flex-none"
+              aria-label="Sort transactions"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EXPENSE_SORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="secondary" className="lg:hidden">
-              <SlidersHorizontal />
-              Filters
-              {activeCount > 0 ? <Badge tone="accent">{activeCount}</Badge> : null}
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="lg:hidden">
-            <SheetHeader>
-              <SheetTitle>Filter the ledger</SheetTitle>
-              <SheetDescription>
-                Filters apply to the shared household ledger for the selected period.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="overflow-y-auto pr-1">
-              <ExpenseFilterFields
-                filters={filters}
-                onFiltersChange={onFiltersChange}
-                categories={categories}
-                members={members}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" className="flex-1" onClick={clearAll}>
-                Clear all
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="secondary" className="shrink-0 lg:hidden">
+                <SlidersHorizontal />
+                Filters
+                {activeCount > 0 ? <Badge tone="accent">{activeCount}</Badge> : null}
               </Button>
-              <SheetClose asChild>
-                <Button className="flex-1">Show {resultLabel ?? 'results'}</Button>
-              </SheetClose>
-            </div>
-          </SheetContent>
-        </Sheet>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="lg:hidden">
+              <SheetHeader>
+                <SheetTitle>Filter the ledger</SheetTitle>
+                <SheetDescription>
+                  Filters apply to the shared household ledger for the selected period.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="overflow-y-auto overscroll-contain pr-1">
+                <ExpenseFilterFields
+                  filters={filters}
+                  onFiltersChange={onFiltersChange}
+                  categories={categories}
+                  members={members}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="secondary" className="flex-1" onClick={clearAll}>
+                  Clear all
+                </Button>
+                <SheetClose asChild>
+                  <Button className="flex-1">Show {resultLabel ?? 'results'}</Button>
+                </SheetClose>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
 
         {activeCount > 0 ? (
           <Button variant="ghost" onClick={onReset} className="hidden lg:inline-flex">

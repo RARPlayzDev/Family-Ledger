@@ -11,6 +11,10 @@ export default {
           DEFAULT: '#141619',
           raised: '#191C20',
           sunken: '#101214',
+          /** Pressed / hovered tint for rows and menus (`bg-surface-hover`). */
+          hover: '#1E2126',
+          /** Selected / pressed tint for chips, tiles and code blocks. */
+          active: '#242830',
         },
         line: {
           DEFAULT: '#25282D',

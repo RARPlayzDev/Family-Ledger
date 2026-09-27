@@ -53,7 +53,9 @@ export function StatCard({
         <p className="label-caps">{label}</p>
         {icon ? <span className="text-content-subtle [&_svg]:size-4">{icon}</span> : null}
       </div>
-      <p className={cn('mt-2 text-xl font-semibold tracking-tight sm:text-2xl', TONE_TEXT[tone])}>
+      {/* Two KPI tiles per row on a phone halves the dashboard scroll; the figures
+          step down a size there so a long amount never wraps or overflows. */}
+      <p className={cn('mt-2 text-lg font-semibold tracking-tight sm:text-2xl', TONE_TEXT[tone])}>
         <Money paise={paise} />
       </p>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">

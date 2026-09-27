@@ -19,11 +19,13 @@ const buttonVariants = cva(
         link: 'text-accent underline-offset-4 hover:underline',
       },
       size: {
-        sm: 'h-8 px-3 text-xs',
-        md: 'h-10 px-4',
+        // Phones get 44px targets (the Android guideline); desktop keeps the
+        // compact 32/40px bar heights it was designed around.
+        sm: 'h-11 px-3 text-xs sm:h-8',
+        md: 'h-11 px-4 sm:h-10',
         lg: 'min-touch h-11 px-5',
-        icon: 'h-10 w-10',
-        'icon-sm': 'h-8 w-8',
+        icon: 'h-11 w-11 sm:h-10 sm:w-10',
+        'icon-sm': 'h-11 w-11 sm:h-8 sm:w-8',
       },
     },
     defaultVariants: {

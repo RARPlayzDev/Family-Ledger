@@ -17,7 +17,9 @@ export const DropdownMenuContent = forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        'z-50 min-w-[10rem] overflow-hidden rounded-lg border border-line bg-surface p-1 shadow-pop',
+        // A menu with many entries (households, payment methods, categories)
+        // scrolls inside itself instead of running off the bottom of a phone.
+        'z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[10rem] overflow-y-auto overscroll-contain rounded-lg border border-line bg-surface p-1 shadow-pop',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95',
         className,
       )}

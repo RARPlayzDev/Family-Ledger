@@ -22,10 +22,11 @@ export function MobileNav() {
             <NavLink
               to={item.to}
               end={item.end}
+              aria-label={item.label}
               className={({ isActive }) =>
                 cn(
-                  'flex min-touch flex-col items-center justify-center gap-1 py-2 text-2xs transition-colors',
-                  isActive ? 'text-accent' : 'text-content-subtle',
+                  'flex min-touch select-none flex-col items-center justify-center gap-1 px-1 py-2 text-2xs transition-colors active:bg-surface-hover',
+                  isActive ? 'text-accent' : 'text-content-muted',
                 )
               }
             >

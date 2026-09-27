@@ -24,7 +24,7 @@ export function KpiRow({
   const perDay = averageDailySpend(totals.total_paise, elapsed);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
       <StatCard
         label="Household spend"
         paise={totals.total_paise}
@@ -54,7 +54,7 @@ export function KpiRow({
         hint={
           comparison.hasPrevious
             ? `Last month ${formatINR(previousTotals.total_paise, { decimals: 0 })}`
-            : 'No spending recorded last month'
+            : 'No spending last month'
         }
         icon={<PiggyBank />}
       />
