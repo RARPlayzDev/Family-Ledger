@@ -100,6 +100,14 @@ class MainActivity : AppCompatActivity() {
 
     private var exitArmed = false
 
+    /**
+     * False while the web app reports an open modal through the JS bridge.
+     * Radix locks body scroll then, which makes the WebView look pinned to the
+     * top — a swipe inside a dialog would otherwise become a pull-to-refresh
+     * and reload the page over the user's unsaved input.
+     */
+    private var pullToRefreshEnabled = true
+
     private val resetExit = Runnable { exitArmed = false }
     private val giveUpOnSplash = Runnable { releaseSplash() }
 
@@ -224,6 +232,28 @@ class MainActivity : AppCompatActivity() {
             // Re-read whatever route the user is looking at.
             if (view.url.isNullOrBlank()) loadHome() else view.reload()
         }
+
+        // The default check asks the WebView whether it can still scroll up.
+        // Radix locks body scroll while a dialog is open, so the page always
+        // answers "I am at the top" and every swipe inside the dialog became a
+        // refresh. The callback overrides that answer: no refresh while the
+        // web app has a modal open or while the page itself could still scroll
+        // up (the rule the default encodes).
+        binding.swipeRefresh.setOnChildScrollUpCallback { _, _ ->
+            val page = webView
+            !pullToRefreshEnabled || page == null || page.canScrollVertically(-1)
+        }
+    }
+
+    /**
+     * Single writer for [pullToRefreshEnabled] and the widget's own enabled
+     * flag: called from the JS bridge (posted to the main thread) and from the
+     * WebView client (already on it).
+     */
+    private fun setPullToRefreshEnabled(enabled: Boolean) {
+        pullToRefreshEnabled = enabled
+        binding.swipeRefresh.isEnabled = enabled
+        if (!enabled) binding.swipeRefresh.isRefreshing = false
     }
 
     private fun setUpOfflinePanel() {
@@ -387,6 +417,9 @@ class MainActivity : AppCompatActivity() {
         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
             mainFrameFailed = false
             hideOffline()
+            // A fresh document starts with no modal, so whatever the previous
+            // page asked of the bridge no longer applies.
+            setPullToRefreshEnabled(true)
             binding.pageProgress.apply {
                 progress = 0
                 visibility = View.VISIBLE
@@ -706,7 +739,7 @@ class MainActivity : AppCompatActivity() {
     // ========================= Native save bridge =========================
 
     /**
-     * Native half of the CSV export.
+     * Native half of the shell bridge: CSV export and pull-to-refresh control.
      *
      * WebView silently ignores the HTML `download` attribute the web app uses,
      * so `src/lib/download.ts` looks for `window.FamilyLedgerAndroid` first and
@@ -744,6 +777,17 @@ class MainActivity : AppCompatActivity() {
         /** Lets the web app label a support request with the exact build. */
         @JavascriptInterface
         fun appVersion(): String = BuildConfig.VERSION_NAME
+
+        /**
+         * Lets the web app stand pull-to-refresh down while a modal is open
+         * (`src/lib/native-bridge.ts`): the dialog has to scroll under the
+         * finger instead of reloading the page. Runs on the WebView's private
+         * JavaScript thread, so the view work is posted to the main thread.
+         */
+        @JavascriptInterface
+        fun setPullToRefreshEnabled(enabled: Boolean) {
+            mainHandler.post { this@MainActivity.setPullToRefreshEnabled(enabled) }
+        }
     }
 
     /**

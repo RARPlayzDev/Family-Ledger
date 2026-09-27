@@ -1,12 +1,19 @@
 /**
- * Native file-saving hook injected by the Android shell (see
- * `mobile-app/.../MainActivity.kt`). Absent in every browser, so the guard
- * below keeps the web path untouched.
+ * Native bridge injected by the Android shell (see
+ * `mobile-app/.../MainActivity.kt`) — CSV export, build label and
+ * pull-to-refresh control. Absent in every browser, so the guards below keep
+ * the web path untouched.
  */
 type FamilyLedgerAndroidBridge = {
   /** @returns `"saved:<path>"` on success, `"error:<reason>"` otherwise. */
   saveBase64: (fileName: string, mimeType: string, base64Content: string) => string;
   appVersion: () => string;
+  /**
+   * Stands the shell's pull-to-refresh down while a modal is open (see
+   * `src/lib/native-bridge.ts`). Optional, so an older shell build degrades
+   * to a no-op instead of an exception.
+   */
+  setPullToRefreshEnabled?: (enabled: boolean) => void;
 };
 
 declare global {

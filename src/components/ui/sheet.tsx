@@ -18,7 +18,7 @@ export const SheetContent = forwardRef<
   <DialogPrimitive.Portal>
     <DialogPrimitive.Overlay
       className={cn(
-        'fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]',
+        'fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px] overscroll-contain touch-none',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
       )}
     />

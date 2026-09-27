@@ -132,6 +132,28 @@ needs no storage permission. On API 24–28 it falls back to this app's own
 external Downloads directory — again with no permission, because asking for
 `WRITE_EXTERNAL_STORAGE` is not something a ledger app could justify to Play.
 
+### Pull-to-refresh vs. open dialogs
+
+`SwipeRefreshLayout` wraps the WebView and only takes a swipe for a refresh
+when the page cannot scroll up any further. Radix locks body scroll while a
+dialog is open, which makes the page always look pinned to the top — so a
+swipe inside a dialog would have reloaded the page instead of scrolling the
+dialog.
+
+The web app's `src/lib/native-bridge.ts` watches dialogs mounting and
+unmounting and flips a flag through the same bridge:
+
+```ts
+window.FamilyLedgerAndroid.setPullToRefreshEnabled(false); // dialog open
+window.FamilyLedgerAndroid.setPullToRefreshEnabled(true); // dialog closed
+```
+
+The shell applies the flag through `setOnChildScrollUpCallback`, which keeps
+the default rule (refresh only when the page itself is at the top) and adds
+"…and never while a modal is open". The dialog and sheet overlays also carry
+`overscroll-contain touch-none`, so a fling inside a modal cannot chain-scroll
+the page behind it either.
+
 ---
 
 ## Before you ship
