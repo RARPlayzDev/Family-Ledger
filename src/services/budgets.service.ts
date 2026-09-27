@@ -46,51 +46,28 @@ export type BudgetInput = {
 };
 
 export async function saveBudget(input: BudgetInput): Promise<BudgetWithCategory> {
-  const supabase = getSupabase();
+  // created_by is derived from the session server-side.
+  void input.createdBy;
+  const { data: budgetId, error } = await getSupabase().rpc('upsert_budget', {
+    p_household_id: input.householdId,
+    p_category_id: input.categoryId,
+    p_amount_paise: input.amountPaise,
+    p_period_month: input.periodMonth,
+  });
+  if (error) throw error;
 
-  const conflictQuery = supabase
+  const { data, error: readError } = await getSupabase()
     .from('budgets')
-    .select('id')
-    .eq('household_id', input.householdId)
-    .eq('period_month', input.periodMonth);
-
-  const { data: existing, error: lookupError } = await (input.categoryId === null
-    ? conflictQuery.is('category_id', null)
-    : conflictQuery.eq('category_id', input.categoryId)
-  ).maybeSingle();
-
-  if (lookupError) throw lookupError;
-
-  if (existing) {
-    const { data, error } = await supabase
-      .from('budgets')
-      .update({ amount_paise: input.amountPaise })
-      .eq('id', existing.id)
-      .select(BUDGET_SELECT)
-      .single()
-      .returns<BudgetWithCategory>();
-    if (error) throw error;
-    return data;
-  }
-
-  const { data, error } = await supabase
-    .from('budgets')
-    .insert({
-      household_id: input.householdId,
-      category_id: input.categoryId,
-      amount_paise: input.amountPaise,
-      period_month: input.periodMonth,
-      created_by: input.createdBy,
-    })
     .select(BUDGET_SELECT)
+    .eq('id', budgetId)
     .single()
     .returns<BudgetWithCategory>();
-  if (error) throw error;
+  if (readError) throw readError;
   return data;
 }
 
 export async function deleteBudget(budgetId: string): Promise<void> {
-  const { error } = await getSupabase().from('budgets').delete().eq('id', budgetId);
+  const { error } = await getSupabase().rpc('delete_budget', { p_budget_id: budgetId });
   if (error) throw error;
 }
 
@@ -99,15 +76,11 @@ export async function clearBudgetForCategory(
   periodMonth: string,
   categoryId: string | null,
 ): Promise<void> {
-  const supabase = getSupabase();
-  const base = supabase
-    .from('budgets')
-    .delete()
-    .eq('household_id', householdId)
-    .eq('period_month', periodMonth);
-  const { error } = await (categoryId === null
-    ? base.is('category_id', null)
-    : base.eq('category_id', categoryId));
+  const { error } = await getSupabase().rpc('clear_budget', {
+    p_household_id: householdId,
+    p_period_month: periodMonth,
+    p_category_id: categoryId,
+  });
   if (error) throw error;
 }
 

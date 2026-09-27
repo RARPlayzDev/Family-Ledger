@@ -311,6 +311,91 @@ export type Database = {
         Args: { p_code: string };
         Returns: { household_id: string; name: string };
       };
+      // --- Write RPCs (SECURITY DEFINER) -------------------------------------
+      // Every mutation goes through these; direct table writes are revoked
+      // from `anon`. See migration 20260101000200_write_rpcs.sql.
+      create_household: { Args: { p_name: string; p_timezone?: string | null }; Returns: string };
+      update_household: {
+        Args: { p_household_id: string; p_name?: string | null; p_timezone?: string | null };
+        Returns: undefined;
+      };
+      transfer_household_ownership: {
+        Args: { p_household_id: string; p_new_owner_id: string };
+        Returns: undefined;
+      };
+      add_household_member: {
+        Args: { p_household_id: string; p_user_id: string };
+        Returns: undefined;
+      };
+      remove_household_member: {
+        Args: { p_household_id: string; p_user_id: string };
+        Returns: undefined;
+      };
+      update_my_profile: {
+        Args: { p_display_name?: string | null; p_avatar_url?: string | null };
+        Returns: undefined;
+      };
+      create_category: {
+        Args: {
+          p_household_id: string;
+          p_name: string;
+          p_icon?: string | null;
+          p_color?: string | null;
+        };
+        Returns: string;
+      };
+      update_category: {
+        Args: {
+          p_category_id: string;
+          p_name?: string | null;
+          p_icon?: string | null;
+          p_color?: string | null;
+          p_is_active?: boolean | null;
+        };
+        Returns: undefined;
+      };
+      delete_category: { Args: { p_category_id: string }; Returns: undefined };
+      create_expense: {
+        Args: {
+          p_household_id: string;
+          p_spent_by: string;
+          p_amount_paise: number;
+          p_expense_date?: string | null;
+          p_category_id?: string | null;
+          p_merchant?: string | null;
+          p_note?: string | null;
+          p_payment_method?: PaymentMethod;
+        };
+        Returns: string;
+      };
+      update_expense: {
+        Args: {
+          p_expense_id: string;
+          p_spent_by: string;
+          p_amount_paise: number;
+          p_expense_date: string;
+          p_category_id: string | null;
+          p_merchant: string | null;
+          p_note: string | null;
+          p_payment_method: PaymentMethod;
+        };
+        Returns: undefined;
+      };
+      delete_expense: { Args: { p_expense_id: string }; Returns: undefined };
+      upsert_budget: {
+        Args: {
+          p_household_id: string;
+          p_category_id: string | null;
+          p_amount_paise: number;
+          p_period_month: string;
+        };
+        Returns: string;
+      };
+      delete_budget: { Args: { p_budget_id: string }; Returns: undefined };
+      clear_budget: {
+        Args: { p_household_id: string; p_period_month: string; p_category_id: string | null };
+        Returns: undefined;
+      };
       is_household_member: { Args: { p_household_id: string }; Returns: boolean };
       is_household_owner: { Args: { p_household_id: string }; Returns: boolean };
       shares_household_with: { Args: { p_user_id: string }; Returns: boolean };

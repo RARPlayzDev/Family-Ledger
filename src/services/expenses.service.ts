@@ -205,22 +205,25 @@ export type ExpenseWriteInput = {
 };
 
 export async function createExpense(input: ExpenseWriteInput): Promise<ExpenseWithRelations> {
-  const { data, error } = await getSupabase()
+  const { data: expenseId, error } = await getSupabase().rpc('create_expense', {
+    p_household_id: input.householdId,
+    p_spent_by: input.spentBy,
+    p_amount_paise: input.amountPaise,
+    p_expense_date: input.expenseDate,
+    p_category_id: input.categoryId,
+    p_merchant: input.merchant,
+    p_note: input.note,
+    p_payment_method: input.paymentMethod,
+  });
+  if (error) throw error;
+
+  const { data, error: readError } = await getSupabase()
     .from('expenses')
-    .insert({
-      household_id: input.householdId,
-      spent_by: input.spentBy,
-      amount_paise: input.amountPaise,
-      expense_date: input.expenseDate,
-      category_id: input.categoryId,
-      merchant: input.merchant,
-      note: input.note,
-      payment_method: input.paymentMethod,
-    })
     .select(EXPENSE_SELECT)
+    .eq('id', expenseId)
     .single()
     .returns<ExpenseWithRelations>();
-  if (error) throw error;
+  if (readError) throw readError;
   return data;
 }
 
@@ -228,27 +231,30 @@ export async function updateExpense(
   expenseId: string,
   input: Omit<ExpenseWriteInput, 'householdId'>,
 ): Promise<ExpenseWithRelations> {
-  const { data, error } = await getSupabase()
+  const { error } = await getSupabase().rpc('update_expense', {
+    p_expense_id: expenseId,
+    p_spent_by: input.spentBy,
+    p_amount_paise: input.amountPaise,
+    p_expense_date: input.expenseDate,
+    p_category_id: input.categoryId,
+    p_merchant: input.merchant,
+    p_note: input.note,
+    p_payment_method: input.paymentMethod,
+  });
+  if (error) throw error;
+
+  const { data, error: readError } = await getSupabase()
     .from('expenses')
-    .update({
-      spent_by: input.spentBy,
-      amount_paise: input.amountPaise,
-      expense_date: input.expenseDate,
-      category_id: input.categoryId,
-      merchant: input.merchant,
-      note: input.note,
-      payment_method: input.paymentMethod,
-    })
-    .eq('id', expenseId)
     .select(EXPENSE_SELECT)
+    .eq('id', expenseId)
     .single()
     .returns<ExpenseWithRelations>();
-  if (error) throw error;
+  if (readError) throw readError;
   return data;
 }
 
 export async function deleteExpense(expenseId: string): Promise<void> {
-  const { error } = await getSupabase().from('expenses').delete().eq('id', expenseId);
+  const { error } = await getSupabase().rpc('delete_expense', { p_expense_id: expenseId });
   if (error) throw error;
 }
 

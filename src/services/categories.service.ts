@@ -32,18 +32,23 @@ export async function createCategory(input: {
   color: string;
   createdBy: string;
 }): Promise<Category> {
-  const { data, error } = await getSupabase()
-    .from('categories')
-    .insert({
-      household_id: input.householdId,
-      name: input.name.trim(),
-      icon: input.icon,
-      color: input.color,
-      created_by: input.createdBy,
-    })
-    .select(CATEGORY_SELECT)
-    .single();
+  // createdBy is derived from the session server-side; the argument is kept
+  // only so the call site reads consistently with the other write helpers.
+  void input.createdBy;
+  const { data: categoryId, error } = await getSupabase().rpc('create_category', {
+    p_household_id: input.householdId,
+    p_name: input.name,
+    p_icon: input.icon,
+    p_color: input.color,
+  });
   if (error) throw error;
+
+  const { data, error: readError } = await getSupabase()
+    .from('categories')
+    .select(CATEGORY_SELECT)
+    .eq('id', categoryId)
+    .single();
+  if (readError) throw readError;
   return toDomain(data);
 }
 
@@ -57,13 +62,21 @@ export async function updateCategory(
   if (changes.color !== undefined) payload.color = changes.color;
   if (changes.is_active !== undefined) payload.is_active = changes.is_active;
 
-  const { data, error } = await getSupabase()
-    .from('categories')
-    .update(payload)
-    .eq('id', categoryId)
-    .select(CATEGORY_SELECT)
-    .single();
+  const { error } = await getSupabase().rpc('update_category', {
+    p_category_id: categoryId,
+    p_name: changes.name ?? null,
+    p_icon: changes.icon ?? null,
+    p_color: changes.color ?? null,
+    p_is_active: changes.is_active ?? null,
+  });
   if (error) throw error;
+
+  const { data, error: readError } = await getSupabase()
+    .from('categories')
+    .select(CATEGORY_SELECT)
+    .eq('id', categoryId)
+    .single();
+  if (readError) throw readError;
   return toDomain(data);
 }
 
@@ -72,15 +85,18 @@ export async function updateCategory(
  * `is_active = false` hides them from new expenses while history keeps its label.
  */
 export async function setCategoryArchived(categoryId: string, archived: boolean): Promise<void> {
-  const { error } = await getSupabase()
-    .from('categories')
-    .update({ is_active: !archived })
-    .eq('id', categoryId);
+  const { error } = await getSupabase().rpc('update_category', {
+    p_category_id: categoryId,
+    p_name: null,
+    p_icon: null,
+    p_color: null,
+    p_is_active: !archived,
+  });
   if (error) throw error;
 }
 
 export async function deleteCategory(categoryId: string): Promise<void> {
-  const { error } = await getSupabase().from('categories').delete().eq('id', categoryId);
+  const { error } = await getSupabase().rpc('delete_category', { p_category_id: categoryId });
   if (error) throw error;
 }
 

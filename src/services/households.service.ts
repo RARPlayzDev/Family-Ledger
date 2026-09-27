@@ -20,13 +20,20 @@ export async function updateProfile(
   userId: string,
   changes: { display_name?: string; avatar_url?: string | null },
 ): Promise<ProfileRow> {
-  const { data, error } = await getSupabase()
-    .from('profiles')
-    .update(changes)
-    .eq('id', userId)
-    .select(PROFILE_SELECT)
-    .single();
+  // The edited account is always the session's own account, server-side.
+  void userId;
+  const { error } = await getSupabase().rpc('update_my_profile', {
+    p_display_name: changes.display_name ?? null,
+    p_avatar_url: changes.avatar_url ?? null,
+  });
   if (error) throw error;
+
+  const { data, error: readError } = await getSupabase()
+    .from('profiles')
+    .select(PROFILE_SELECT)
+    .eq('id', userId)
+    .single();
+  if (readError) throw readError;
   return data;
 }
 
@@ -54,16 +61,20 @@ export async function createHousehold(input: {
   ownerId: string;
   timezone?: string;
 }): Promise<HouseholdMembership> {
-  const { data, error } = await getSupabase()
-    .from('households')
-    .insert({
-      name: input.name.trim(),
-      owner_id: input.ownerId,
-      timezone: input.timezone,
-    })
-    .select('id, name, owner_id, currency_code, timezone, join_code, created_at, updated_at')
-    .single();
+  // The owner is derived from the session header server-side (ownerId is kept
+  // in the signature only so callers can invalidate the right cache key).
+  const { data: householdId, error } = await getSupabase().rpc('create_household', {
+    p_name: input.name,
+    p_timezone: input.timezone ?? null,
+  });
   if (error) throw error;
+
+  const { data, error: readError } = await getSupabase()
+    .from('households')
+    .select('id, name, owner_id, currency_code, timezone, join_code, created_at, updated_at')
+    .eq('id', householdId)
+    .single();
+  if (readError) throw readError;
 
   return {
     household: data,
@@ -76,7 +87,11 @@ export async function updateHousehold(
   householdId: string,
   changes: { name?: string; timezone?: string },
 ): Promise<void> {
-  const { error } = await getSupabase().from('households').update(changes).eq('id', householdId);
+  const { error } = await getSupabase().rpc('update_household', {
+    p_household_id: householdId,
+    p_name: changes.name ?? null,
+    p_timezone: changes.timezone ?? null,
+  });
   if (error) throw error;
 }
 
@@ -86,10 +101,10 @@ export async function updateHousehold(
  * household (see `assert_owner_is_member`), so the UI cannot escalate privileges.
  */
 export async function transferOwnership(householdId: string, newOwnerId: string): Promise<void> {
-  const { error } = await getSupabase()
-    .from('households')
-    .update({ owner_id: newOwnerId })
-    .eq('id', householdId);
+  const { error } = await getSupabase().rpc('transfer_household_ownership', {
+    p_household_id: householdId,
+    p_new_owner_id: newOwnerId,
+  });
   if (error) throw error;
 }
 
