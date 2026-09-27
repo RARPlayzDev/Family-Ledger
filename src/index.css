@@ -26,6 +26,12 @@
     overflow-x: clip;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    /*
+     * When the browser scrolls a focused field into view (tapping an input on a
+     * phone), leave room for the fixed bottom navigation, otherwise the field is
+     * parked underneath it while the keyboard is open.
+     */
+    scroll-padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 
   body {
