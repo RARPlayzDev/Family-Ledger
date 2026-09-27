@@ -105,6 +105,22 @@ export function onSessionTokenChange(listener: TokenListener): () => void {
 }
 
 /**
+ * Attaches the CURRENT session token to every request at send time (not at
+ * client creation), so even a client instance created before sign-in can
+ * never send a missing or stale session header.
+ */
+const withSessionHeader: typeof fetch = (input, init) => {
+  const headers = new Headers(init?.headers);
+  const token = readStoredToken();
+  if (token) {
+    headers.set(SESSION_HEADER, token);
+  } else {
+    headers.delete(SESSION_HEADER);
+  }
+  return fetch(input, { ...init, headers });
+};
+
+/**
  * Lazily creates the single browser Supabase client.
  *
  * Only the publishable/anon key is used - requests arrive as the `anon`
@@ -115,13 +131,12 @@ export function getSupabase(): SupabaseClient<Database> {
     throw new AppConfigurationError(supabaseEnv.problems);
   }
   if (!cachedClient) {
-    // Drop anything a previous supabase-js auth session may have stored.
+    // Drop anything a previous supabase auth session may have stored.
     try {
       window.localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY);
     } catch {
       // ignore
     }
-    const token = readStoredToken();
     cachedClient = createClient<Database>(supabaseEnv.url, supabaseEnv.anonKey, {
       auth: {
         persistSession: false,
@@ -131,8 +146,8 @@ export function getSupabase(): SupabaseClient<Database> {
       global: {
         headers: {
           'X-Client-Info': 'familyledger-web/1.0.0',
-          ...(token ? { [SESSION_HEADER]: token } : {}),
         },
+        fetch: withSessionHeader,
       },
     });
   }
