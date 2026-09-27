@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    API 24-30 counterpart of data_extraction_rules.xml.
+
+    `android:allowBackup="false"` already switches cloud backup off; these
+    excludes make it explicit that nothing is captured either way — least of all
+    the WebView's session token, which lives in this app's localStorage.
+-->
+<full-backup-content>
+    <exclude domain="root" />
+    <exclude domain="file" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
+</full-backup-content>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    FamilyLedger dark finance palette.
+
+    These values mirror tailwind.config.js in the web app one-for-one so the
+    native shell (splash, progress bar, pull-to-refresh spinner, offline screen)
+    is indistinguishable from the page it wraps. Keep the two files in sync.
+
+    The full palette is spelled out on purpose, including the tokens the shell
+    does not use yet (a surface tier, a hairline, the warning colour), so native
+    code has one obvious place to look instead of inventing a one-off hex.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Canvas / surfaces -->
+    <color name="fl_canvas">#FF0B0C0E</color>
+    <color name="fl_surface">#FF141619</color>
+    <color name="fl_surface_raised">#FF191C20</color>
+    <color name="fl_surface_sunken" tools:ignore="UnusedResources">#FF101214</color>
+
+    <!-- Hairlines -->
+    <color name="fl_line" tools:ignore="UnusedResources">#FF25282D</color>
+    <color name="fl_line_strong">#FF31353B</color>
+
+    <!-- Accent -->
+    <color name="fl_accent">#FF9AE6B4</color>
+    <color name="fl_accent_strong">#FF7BD9A2</color>
+    <color name="fl_accent_ink">#FF06231A</color>
+
+    <!-- Text -->
+    <color name="fl_content">#FFE7E9EC</color>
+    <color name="fl_content_muted">#FF9BA1AA</color>
+    <color name="fl_content_subtle">#FF6C737D</color>
+
+    <!-- Semantic -->
+    <color name="fl_danger">#FFF87171</color>
+    <color name="fl_warning" tools:ignore="UnusedResources">#FFFBBF24</color>
+
+    <!-- Transparent window bars let the canvas colour show through. -->
+    <color name="fl_transparent">#00000000</color>
+</resources>

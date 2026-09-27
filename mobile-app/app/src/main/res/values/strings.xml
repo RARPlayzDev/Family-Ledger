@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FamilyLedger</string>
+
+    <!-- Offline / error panel -->
+    <string name="error_offline_title">Can\'t reach FamilyLedger</string>
+    <string name="error_offline_body">Check your internet connection and try again. Everything you have already saved is safe on the server.</string>
+    <string name="error_http_title">FamilyLedger is unavailable</string>
+    <string name="error_http_body">The server answered with an error (%1$d). This is usually brief — try again in a moment.</string>
+    <string name="error_secure_title">Connection not secure</string>
+    <string name="error_secure_body">There is a problem with this site\'s security certificate, so FamilyLedger stopped loading to protect your data.</string>
+    <string name="error_renderer_title">Something went wrong</string>
+    <string name="error_renderer_body">The page stopped responding. Reload to continue.</string>
+
+    <!-- Offline / error actions -->
+    <string name="error_retry">Try again</string>
+    <string name="error_open_browser">Open in browser</string>
+    <string name="no_app_for_link">No app on this device can open that link.</string>
+
+    <!-- Native save bridge (CSV export) -->
+    <string name="download_saved">Saved to %1$s</string>
+    <string name="download_failed">Couldn\'t save the file. Check that you have free storage space.</string>
+
+    <!-- Navigation -->
+    <string name="press_back_again">Press back again to exit</string>
+</resources>

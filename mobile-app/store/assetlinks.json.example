@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.familyledger",
+      "sha256_cert_fingerprints": [
+        "RELEASE_KEYSTORE_SHA256",
+        "8B:9F:DD:C0:51:B5:51:D6:11:2B:D0:B1:13:D1:D4:30:31:AD:F3:F4:7B:58:C3:39:E7:E4:BF:39:FE:04:39:E5"
+      ]
+    }
+  }
+]

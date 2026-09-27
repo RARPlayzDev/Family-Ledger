@@ -1,0 +1,12 @@
+# Add project specific R8 rules here.
+# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+#
+# For more details, see
+#   https://d.android.com/r/tools/r8/keep-rules
+
+# WebView JavaScript bridge. This project loads a page that talks to native code
+# through window.FamilyLedgerAndroid, so the bridge methods must survive
+# shrinking and renaming.
+-keepclassmembers class com.example.familyledger.MainActivity$DownloadBridge {
+    public *;
+}
