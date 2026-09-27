@@ -36,3 +36,6 @@ Thumbs.db
 
 # Test output
 coverage/
+
+# Scratch files from database debugging sessions (paste targets, dumps)
+supabase/debug/

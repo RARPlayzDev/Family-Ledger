@@ -56,6 +56,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const Component = asChild ? Slot : 'button';
+    // Radix <Slot> requires exactly ONE element child, so the spinner must not
+    // be a sibling of `children` when asChild is set (a `<Link>` must stay the
+    // only child or Slot throws "failed to slot onto its children").
     return (
       <Component
         ref={ref}
@@ -64,8 +67,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(buttonVariants({ variant, size }), className)}
         {...props}
       >
-        {loading && <Loader2 className="size-4 animate-spin shrink-0" />}
-        {children}
+        {asChild ? (
+          children
+        ) : (
+          <>
+            {loading && <Loader2 className="size-4 animate-spin shrink-0" />}
+            {children}
+          </>
+        )}
       </Component>
     );
   },
