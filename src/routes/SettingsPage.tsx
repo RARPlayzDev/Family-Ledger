@@ -47,7 +47,7 @@ import {
   useArchiveCategory,
   useDeleteCategory,
 } from '@/hooks/use-categories';
-import { useUpdateProfile, useUpdateHousehold } from '@/hooks/use-members';
+import { useDeleteHousehold, useUpdateProfile, useUpdateHousehold } from '@/hooks/use-members';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/errors';
 import type { Category } from '@/types/domain';
@@ -97,6 +97,15 @@ export function SettingsPage() {
 
   // Sign out confirmation
   const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
+
+  // Household teardown (owner only). Destructive enough to require the
+  // household name to be typed back before the action unlocks.
+  const [deleteHouseholdDialogOpen, setDeleteHouseholdDialogOpen] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const deleteHouseholdMutation = useDeleteHousehold();
+  const canConfirmDeleteHousehold =
+    Boolean(householdName) &&
+    deleteConfirmName.trim().toLowerCase() === (householdName ?? '').trim().toLowerCase();
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId || !displayName.trim()) return;
@@ -142,6 +151,34 @@ export function SettingsPage() {
     } catch (err) {
       pushToast({
         title: 'Could not update household',
+        description: errorMessage(err),
+        tone: 'error',
+      });
+    }
+  };
+
+  /**
+   * Owner deletes the whole household. Memberships drive the active household,
+   * so refreshing them sends the app to another household - or to onboarding
+   * when this was the last one.
+   */
+  const handleDeleteHousehold = async () => {
+    if (!householdId || !canConfirmDeleteHousehold) return;
+    const deletedName = householdName ?? 'The household';
+
+    try {
+      await deleteHouseholdMutation.mutateAsync({ householdId });
+      setDeleteHouseholdDialogOpen(false);
+      setDeleteConfirmName('');
+      pushToast({
+        title: 'Household deleted',
+        description: `${deletedName} and all of its data were removed.`,
+        tone: 'success',
+      });
+      await refreshHousehold();
+    } catch (err) {
+      pushToast({
+        title: 'Could not delete household',
         description: errorMessage(err),
         tone: 'error',
       });
@@ -362,6 +399,38 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Danger zone - household teardown, owner only */}
+      {isOwner && householdId && (
+        <Card className="border-danger/20">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Trash2 className="size-4 text-danger" />
+              <CardTitle>Danger zone</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-content">Delete this household</p>
+              <p className="text-2xs text-content-subtle">
+                Permanently removes {householdName}, its memberships, expenses, budgets and custom
+                categories. Everyone loses access to the shared ledger. This cannot be undone.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="shrink-0 text-danger hover:bg-danger/10"
+              onClick={() => {
+                setDeleteConfirmName('');
+                setDeleteHouseholdDialogOpen(true);
+              }}
+            >
+              <Trash2 className="size-4" /> Delete
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Categories Management */}
       <Card>
         <CardHeader>
@@ -571,6 +640,46 @@ export function SettingsPage() {
               className="bg-danger text-white hover:bg-danger/90"
             >
               Delete category
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Household Confirmation - the name must be typed back */}
+      <AlertDialog
+        open={deleteHouseholdDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteHouseholdDialogOpen(open);
+          if (!open) setDeleteConfirmName('');
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {householdName} permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the household, every membership, all expenses, budgets and custom
+              categories. Other members keep their own accounts but lose access to this shared
+              ledger, and the data cannot be recovered. Type the household name to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="delete-household-confirm">Household name</Label>
+            <Input
+              id="delete-household-confirm"
+              value={deleteConfirmName}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              placeholder={householdName ?? ''}
+              autoComplete="off"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteHousehold}
+              disabled={!canConfirmDeleteHousehold}
+              className="bg-danger text-white hover:bg-danger/90"
+            >
+              Delete household
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

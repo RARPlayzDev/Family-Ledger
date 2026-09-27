@@ -108,6 +108,23 @@ export async function transferOwnership(householdId: string, newOwnerId: string)
   if (error) throw error;
 }
 
+/**
+ * Deletes the household and everything scoped to it: the shared ledger, the
+ * budgets, the custom categories and every membership.
+ *
+ * Irreversible and owner-only (both enforced inside the RPC). Accounts are not
+ * touched - each removed member lands back on onboarding with their profile
+ * intact - which is why the RPC, and not a plain DELETE, owns this operation:
+ * a raw delete of the owner's membership row is refused by the
+ * `guard_household_member` trigger.
+ */
+export async function deleteHousehold(householdId: string): Promise<void> {
+  const { error } = await getSupabase().rpc('delete_household', {
+    p_household_id: householdId,
+  });
+  if (error) throw error;
+}
+
 /** Members of a household with their profile (RLS: only for co-members). */
 export async function listHouseholdMembers(householdId: string): Promise<HouseholdMember[]> {
   const { data, error } = await getSupabase()

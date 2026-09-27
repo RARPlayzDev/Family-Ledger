@@ -323,6 +323,8 @@ export type Database = {
         Args: { p_household_id: string; p_new_owner_id: string };
         Returns: undefined;
       };
+      /** Owner-only teardown: removes the household and every row scoped to it. */
+      delete_household: { Args: { p_household_id: string }; Returns: undefined };
       add_household_member: {
         Args: { p_household_id: string; p_user_id: string };
         Returns: undefined;

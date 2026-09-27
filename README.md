@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="#-features">Features</a> ·
+  <a href="#-android-app">Android App</a> ·
   <a href="#%EF%B8%8F-tech-stack">Tech Stack</a> ·
   <a href="#-getting-started">Getting Started</a> ·
   <a href="#-project-structure">Structure</a> ·
@@ -46,9 +47,32 @@ FamilyLedger is a **shared household expense tracker** designed for Indian famil
 | **Analytics** | Month-over-month comparison, category donut chart, member bar chart, cumulative spend curve, daily average, and projected month-end spend |
 | **Budgets** | Household-wide monthly budget + per-category budgets with progress bars and overspend alerts |
 | **Members** | Invite family members via 6-character join code, role management (Owner / Member), member profiles |
-| **Settings** | Household settings, category management (create / edit / deactivate), account preferences |
+| **Settings** | Household settings, category management (create / edit / deactivate), owner-only household deletion with type-to-confirm, account preferences |
 | **Auth** | Fully custom auth—sign up, login, and sessions handled by PostgreSQL RPCs with bcrypt hashing and rate-limited login attempts |
 | **Security** | Row Level Security on every table, composite FK constraints ensuring spender ∈ household, SECURITY DEFINER RPCs for sensitive operations |
+
+---
+
+## 📱 Android App
+
+`mobile-app/` is a Kotlin WebView shell that ships FamilyLedger as an Android
+app. The React app does the work; the shell owns the launcher icon, the splash
+screen, edge-to-edge insets, pull-to-refresh, offline recovery, and the
+file-save bridge the CSV export needs.
+
+| | |
+|---|---|
+| **Min / target SDK** | 24 / 37 |
+| **Build** | `cd mobile-app && .\gradlew.bat :app:assembleDebug` |
+| **Refresh on open** | Reloads the current route on every return to the foreground, unless a modal is open (so an in-progress expense is never lost) |
+| **Deep links** | `…/onboarding?join=CODE` opens the app once App Links are verified |
+
+The palette in `mobile-app/app/src/main/res/values/colors.xml` mirrors
+`tailwind.config.js` token for token — the two are deliberate duplicates, so
+update both together.
+
+See [`mobile-app/README.md`](mobile-app/README.md) for signing, Play Store
+set-up, App Links verification and icon regeneration.
 
 ---
 
@@ -133,7 +157,9 @@ supabase/migrations/
 ├── 20260101000050_custom_auth.sql          # Custom auth RPCs & sessions
 ├── 20260101000100_rls_and_integrity.sql    # RLS policies & membership guards
 ├── 20260101000200_analytics_functions.sql  # Server-side aggregate functions
-└── 20260101000300_seed_system_categories.sql # Default expense categories
+├── 20260101000200_write_rpcs.sql           # Every mutation (SECURITY DEFINER RPCs)
+├── 20260101000300_seed_system_categories.sql # Default expense categories
+└── 20260101000400_household_teardown.sql   # Owner-only household deletion
 ```
 
 Or with the Supabase CLI:
@@ -202,6 +228,10 @@ FamilyLedger/
 │   └── types/                  # TypeScript type definitions
 │       ├── database.ts         # Supabase-generated DB types
 │       └── domain.ts           # Application domain types
+├── mobile-app/                 # Android WebView shell (Kotlin)
+│   ├── app/src/main/           #   Manifest, MainActivity, resources
+│   ├── store/                  #   Play listing icon, assetlinks template
+│   └── tools/                  #   Icon generator, fingerprint helper
 ├── supabase/
 │   ├── config.toml             # Supabase CLI configuration
 │   └── migrations/             # Ordered SQL migration files
@@ -299,6 +329,8 @@ erDiagram
 - **Custom auth** — No Supabase Auth dependency. Password hashes (bcrypt via pgcrypto) never leave the database. Sessions use SHA-256 hashed tokens. Login attempts are rate-limited (10 failures → 15-minute lockout).
 - **System categories** — Categories with `household_id IS NULL` are system defaults shared across all households.
 - **Multi-household ready** — Every table carries a `household_id` FK; onboarding a second family requires zero schema changes.
+- **Household lifecycle** — Leaving is a plain membership delete, so `guard_household_member` refuses to drop the owner's row and ownership must be transferred first. Deleting the household is the owner-only `delete_household` RPC: it removes child rows in foreign-key order and whitelists that single owner-membership delete through a transaction-local flag, so the leave rule still holds everywhere else. Accounts are never deleted — only their membership is.
+- **Sessions** — `public.sessions` stores one row per sign-in: `token_hash` (SHA-256 of the bearer token, the primary key), `user_id` (FK to `profiles`, `ON DELETE CASCADE`) and `created_at`. The raw token exists only in the browser's localStorage and travels as the `x-familyledger-session` header, which `session_user_id()` resolves inside every policy and RPC. Rows never expire; `logout()` is what removes them. RLS is on with zero policies and all grants revoked, so no client role can read or write the table directly.
 
 ---
 
@@ -343,6 +375,21 @@ The `vercel.json` includes:
 - SPA fallback rewrites for client-side routing
 - Immutable caching for hashed assets (`/assets/*`)
 - Security headers (nosniff, DENY framing, strict referrer)
+- An exclusion for `/.well-known/`, so Android App Links verification files are
+  served as themselves instead of being rewritten to `index.html`
+
+### Android release
+
+The Android shell is built and signed separately — see
+[`mobile-app/README.md`](mobile-app/README.md). Two deployment details are easy
+to miss:
+
+- `public/.well-known/assetlinks.json` must list the fingerprint of the
+  certificate the installed build is signed with, otherwise invite links open in
+  the browser instead of the app. Print it with
+  `mobile-app/tools/print-signing-fingerprint.ps1`.
+- Nothing else is needed: the app loads the same deployed origin, so every Vercel
+  deploy reaches Android users immediately with no app update.
 
 ---
 

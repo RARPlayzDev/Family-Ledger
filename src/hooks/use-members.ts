@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
 import {
   createHousehold,
+  deleteHousehold,
   transferOwnership,
   updateHousehold,
   updateProfile,
@@ -79,6 +80,27 @@ export function useLeaveHousehold() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['memberships'] });
       void queryClient.invalidateQueries({ queryKey: ['household-members'] });
+    },
+  });
+}
+
+/**
+ * Owner tears the household down permanently. Every household-scoped query is
+ * keyed by householdId, so the removed household's caches are dropped instead
+ * of being refetched, and the memberships list (the source of truth for the
+ * active household) decides where the app goes next: another household if the
+ * owner has one, otherwise onboarding.
+ */
+export function useDeleteHousehold() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { householdId: string }) => deleteHousehold(input.householdId),
+    onSuccess: (_data, variables) => {
+      queryClient.removeQueries({ queryKey: queryKeys.expenses(variables.householdId) });
+      queryClient.removeQueries({ queryKey: queryKeys.categories(variables.householdId) });
+      queryClient.removeQueries({ queryKey: ['budgets', variables.householdId] });
+      queryClient.removeQueries({ queryKey: queryKeys.householdMembers(variables.householdId) });
+      void queryClient.invalidateQueries({ queryKey: ['memberships'] });
     },
   });
 }
