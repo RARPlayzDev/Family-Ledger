@@ -1,11 +1,11 @@
 import {
   Banknote,
-  Beef,
   Bus,
   Car,
   Clapperboard,
   Coffee,
   CreditCard,
+  Drumstick,
   Dumbbell,
   Fuel,
   Gift,
@@ -44,7 +44,6 @@ import { cn } from '@/lib/utils';
  */
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   Banknote,
-  Beef,
   Bus,
   Car,
   Clapperboard,
@@ -57,6 +56,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   HeartPulse,
   Home,
   Landmark,
+  Meat: Drumstick,
   Milk,
   Package,
   PawPrint,
@@ -81,6 +81,7 @@ export const CATEGORY_ICON_NAMES: string[] = Object.keys(CATEGORY_ICONS);
 
 export function categoryIconComponent(name: string | null | undefined): LucideIcon {
   if (!name) return Tag;
+  if (name === 'Beef' || name === 'Drumstick') return Drumstick;
   return CATEGORY_ICONS[name] ?? Tag;
 }
 
