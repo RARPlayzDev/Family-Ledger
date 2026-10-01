@@ -1,5 +1,6 @@
 import {
   Banknote,
+  Beef,
   Bus,
   Car,
   Clapperboard,
@@ -43,6 +44,7 @@ import { cn } from '@/lib/utils';
  */
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   Banknote,
+  Beef,
   Bus,
   Car,
   Clapperboard,
