@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { IndianRupee } from 'lucide-react';
+import { ChevronDown, IndianRupee } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,12 @@ import { Spinner } from '@/components/ui/spinner';
 import { CategoryIcon } from '@/components/shared/category-icon';
 import { Money } from '@/components/shared/money';
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -32,6 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import { todayIsoInTimeZone } from '@/domain/dates';
 import { PAYMENT_METHOD_LABELS } from '@/domain/expenses';
 import { errorMessage } from '@/lib/errors';
+import { cn } from '@/lib/utils';
 import { memberSummaryOf } from '@/services/households.service';
 import type { ExpenseWithRelations } from '@/types/domain';
 import {
@@ -210,29 +217,82 @@ export function ExpenseFormDialog({
               <Controller
                 control={form.control}
                 name="category_id"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger
-                      id="expense-category"
-                      invalid={Boolean(form.formState.errors.category_id)}
-                    >
-                      <SelectValue placeholder="Choose a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_CATEGORY}>Uncategorised</SelectItem>
-                      {(categoriesQuery.data ?? [])
-                        .filter((category) => category.is_active)
-                        .map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            <span className="flex items-center gap-2">
-                              <CategoryIcon name={category.icon} color={category.color} size="sm" />
-                              {category.name}
-                            </span>
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                render={({ field }) => {
+                  const allCategories = categoriesQuery.data ?? [];
+                  const selectedCategory =
+                    allCategories.find((category) => category.id === field.value) ?? null;
+                  return (
+                    /*
+                     * A menu rather than a Radix <Select>.
+                     *
+                     * On a phone the picker is tapped while the amount keyboard
+                     * is still open. Radix's Select opens on click and closes
+                     * itself on the `window` resize that the keyboard dismissal
+                     * fires (see SelectContentImpl), so its first tap was always
+                     * swallowed - the picker flashed open and shut, and the
+                     * category had to be tapped twice. A menu opens on
+                     * pointerdown and ignores the resize, so the first tap lands.
+                     */
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        id="expense-category"
+                        aria-invalid={Boolean(form.formState.errors.category_id) || undefined}
+                        className={cn(
+                          'flex min-touch w-full items-center justify-between gap-2 rounded-md border bg-surface-sunken px-3 py-2 text-left text-base text-content sm:text-sm',
+                          'focus:outline-none focus:ring-1 focus:ring-accent',
+                          'active:bg-surface-hover',
+                          form.formState.errors.category_id ? 'border-danger' : 'border-line',
+                        )}
+                      >
+                        {selectedCategory ? (
+                          <span className="flex min-w-0 items-center gap-2">
+                            <CategoryIcon
+                              name={selectedCategory.icon}
+                              color={selectedCategory.color}
+                              size="sm"
+                            />
+                            <span className="truncate">{selectedCategory.name}</span>
+                          </span>
+                        ) : (
+                          <span className="truncate text-content-subtle">
+                            {field.value === NO_CATEGORY ? 'Uncategorised' : 'Choose a category'}
+                          </span>
+                        )}
+                        <ChevronDown className="size-4 shrink-0 text-content-subtle" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="start"
+                        sideOffset={4}
+                        className="max-h-72 w-[var(--radix-dropdown-menu-trigger-width)]"
+                      >
+                        <DropdownMenuCheckboxItem
+                          checked={field.value === NO_CATEGORY}
+                          onSelect={() => field.onChange(NO_CATEGORY)}
+                        >
+                          Uncategorised
+                        </DropdownMenuCheckboxItem>
+                        {allCategories
+                          .filter((category) => category.is_active)
+                          .map((category) => (
+                            <DropdownMenuCheckboxItem
+                              key={category.id}
+                              checked={field.value === category.id}
+                              onSelect={() => field.onChange(category.id)}
+                            >
+                              <span className="flex min-w-0 items-center gap-2">
+                                <CategoryIcon
+                                  name={category.icon}
+                                  color={category.color}
+                                  size="sm"
+                                />
+                                <span className="truncate">{category.name}</span>
+                              </span>
+                            </DropdownMenuCheckboxItem>
+                          ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                }}
               />
             </div>
 
