@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,7 @@ import {
   budgetStateTone,
   evaluateBudget,
 } from '@/domain/budgets';
-import { daysElapsedInMonth, daysInMonth } from '@/domain/dates';
+import { daysElapsedInMonth, daysInMonth, startOfMonthIso } from '@/domain/dates';
 import { formatINR, formatPercent } from '@/domain/money';
 import type { CategoryTotal } from '@/types/domain';
 
@@ -38,7 +39,7 @@ export function BudgetPulseCard({
   isOwner: boolean;
   today: string;
 }) {
-  const budgetsQuery = useBudgets(householdId, monthKey);
+  const budgetsQuery = useBudgets(householdId, startOfMonthIso(monthKey));
   const budgets = budgetsQuery.data ?? [];
 
   const householdBudget = budgets.find((budget) => budget.category_id === null) ?? null;
@@ -102,10 +103,23 @@ export function BudgetPulseCard({
             </p>
           </>
         ) : (
-          <p className="text-xs leading-relaxed text-content-muted">
-            Set a monthly limit to see how the family is tracking. Category limits are evaluated
-            separately from the household limit.
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-content-muted leading-relaxed">
+              No monthly limit set yet — set one to see spending alerts and
+              pace tracking for the family.
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              asChild
+              className="w-full"
+            >
+              <Link to="/app/budgets">
+                <Plus className="size-3.5 mr-2" />
+                {isOwner ? 'Set household budget' : 'View budgets'}
+              </Link>
+            </Button>
+          </div>
         )}
 
         {exceededCategories.length > 0 ? (
@@ -126,8 +140,8 @@ export function BudgetPulseCard({
           </div>
         ) : null}
 
-        <Button variant="secondary" size="sm" asChild className="w-full">
-          <Link to="/app/budgets">{isOwner ? 'Manage budgets' : 'View budgets'}</Link>
+        <Button variant="secondary" size="sm" asChild className="w-full mt-2">
+          <Link to="/app/budgets">{isOwner ? 'Manage all budgets' : 'View budgets'}</Link>
         </Button>
       </CardContent>
     </Card>

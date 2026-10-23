@@ -69,7 +69,7 @@ export function BudgetsPage() {
   const [monthKey, setMonthKey] = useState(currentMonthKey());
   const today = todayIsoInTimeZone(timezone);
 
-  const budgetsQuery = useBudgets(householdId, monthKey);
+  const budgetsQuery = useBudgets(householdId, startOfMonthIso(monthKey));
   const categoriesQuery = useCategories(householdId);
   const insightsQuery = useMonthlyInsights(householdId, monthKey);
 
@@ -235,12 +235,12 @@ export function BudgetsPage() {
 
   const handleCopyFromPreviousMonth = async () => {
     if (!householdId || !userId) return;
-    const sourceMonth = previousMonthKey(monthKey);
+    const sourceMonth = startOfMonthIso(previousMonthKey(monthKey));
     try {
       const copied = await copyBudgetsMutation.mutateAsync({
         householdId,
         sourceMonth,
-        targetMonth: monthKey,
+        targetMonth: startOfMonthIso(monthKey),
         createdBy: userId,
       });
       pushToast({
