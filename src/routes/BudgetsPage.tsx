@@ -55,6 +55,7 @@ import {
   daysInMonth,
   formatMonthLabel,
   previousMonthKey,
+  startOfMonthIso,
   todayIsoInTimeZone,
 } from '@/domain/dates';
 import { formatINR, formatPercent, paiseToRupees, parseRupeeInput } from '@/domain/money';
@@ -189,7 +190,10 @@ export function BudgetsPage() {
         householdId,
         categoryId: editingBudget.categoryId,
         amountPaise: parsedPaise,
-        periodMonth: monthKey,
+        // `period_month` is a PostgreSQL `date` constrained to the first of the
+        // month. Send an explicit ISO calendar day (`2026-10-01`) instead of the
+        // `yyyy-MM` month key, which the `date` column cannot parse.
+        periodMonth: startOfMonthIso(monthKey),
         createdBy: userId,
       });
       pushToast({
@@ -377,29 +381,30 @@ export function BudgetsPage() {
                 </div>
               </div>
             ) : (
-              <div className="mt-4 flex flex-col items-center justify-center rounded-lg border border-dashed border-line p-6 text-center">
-                <PiggyBank className="size-8 text-content-subtle" />
-                <p className="mt-2 text-sm font-medium text-content">No overall limit set</p>
+              <div className="mt-4 flex flex-col items-center justify-center rounded-xl border border-dashed border-line p-8 text-center bg-accent/5">
+                <PiggyBank className="size-9 text-content-subtle" />
+                <p className="mt-3 text-sm font-medium text-content">No overall limit set</p>
                 <p className="max-w-md text-xs text-content-muted">
-                  Set a monthly budget for the entire household to receive warning alerts and pace
-                  tracking.
+                  Set a monthly budget for the entire household to receive warning
+                  alerts and pace tracking.
                 </p>
                 {isOwner && (
-                  <Button size="sm" className="mt-3" onClick={handleOpenHouseholdBudget}>
-                    <Plus /> Set household limit
+                  <Button size="sm" className="mt-4" onClick={handleOpenHouseholdBudget}>
+                    <Plus className="size-3.5" />
+                    Set household limit
                   </Button>
                 )}
               </div>
             )}
           </Card>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Card className="p-4">
               <p className="label-caps">Total category limits</p>
-              <p className="mt-1 text-xl font-semibold">
+              <p className="mt-1 text-lg font-semibold">
                 <Money paise={totalCatAllocation} />
               </p>
-              <p className="mt-1 text-2xs text-content-muted">
+              <p className="mt-1 text-[10px] text-content-muted">
                 {categoryBudgets.length}{' '}
                 {categoryBudgets.length === 1 ? 'category has' : 'categories have'} dedicated limits
               </p>
@@ -407,12 +412,12 @@ export function BudgetsPage() {
 
             <Card className="p-4">
               <p className="label-caps">Unbudgeted category spend</p>
-              <p className="mt-1 text-xl font-semibold">
+              <p className="mt-1 text-lg font-semibold">
                 <Money paise={unbudgetedSpend ?? 0} />
               </p>
-              <p className="mt-1 text-2xs text-content-muted">
+              <p className="mt-1 text-[10px] text-content-muted">
                 {unbudgetedSpend && unbudgetedSpend > 0 ? (
-                  <span className="flex items-center gap-1 text-warn">
+                  <span className="flex items-center gap-1.5 text-warn">
                     <AlertTriangle className="size-3" />
                     Spent in categories without a dedicated limit
                   </span>

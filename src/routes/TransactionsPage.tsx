@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarRange, ChevronLeft, ChevronRight, Download, Plus } from 'lucide-react';
+import { CalendarRange, ChevronLeft, ChevronRight, Download, Plus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -178,11 +178,18 @@ export function TransactionsPage() {
       />
 
       {pageQuery.isError ? (
-        <Card className="border-danger/30 p-4 text-xs text-content-muted">
-          {errorMessage(pageQuery.error)}
-          <Button variant="secondary" size="sm" className="ml-3" onClick={() => void pageQuery.refetch()}>
-            Retry
-          </Button>
+        <Card className="border-danger/30 bg-danger/5 p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="size-5 shrink-0 text-danger mt-0.5" />
+            <div className="flex-1 leading-relaxed text-xs text-content-muted">
+              {errorMessage(pageQuery.error)}
+            </div>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button variant="secondary" size="sm" onClick={() => void pageQuery.refetch()}>
+              Retry
+            </Button>
+          </div>
         </Card>
       ) : null}
 

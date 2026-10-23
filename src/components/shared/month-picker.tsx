@@ -22,7 +22,7 @@ export function MonthPicker({
   return (
     <div
       className={cn(
-        'flex items-center gap-1 rounded-md border border-line bg-surface-raised p-0.5',
+        'inline-flex items-center gap-1 rounded-xl border border-line bg-surface-raised px-1',
         className,
       )}
     >
@@ -32,9 +32,9 @@ export function MonthPicker({
         aria-label="Previous month"
         onClick={() => onChange(shiftMonthKey(value, -1))}
       >
-        <ChevronLeft />
+        <ChevronLeft className="size-3.5" />
       </Button>
-      <span className="num min-w-[7.5rem] text-center text-xs font-medium text-content sm:text-sm">
+      <span className="num min-w-[7rem] text-center text-xs font-medium text-content sm:text-sm">
         {formatMonthLabel(value)}
       </span>
       <Button
@@ -44,7 +44,7 @@ export function MonthPicker({
         disabled={isCurrentMonth}
         onClick={() => onChange(shiftMonthKey(value, 1))}
       >
-        <ChevronRight />
+        <ChevronRight className="size-3.5" />
       </Button>
     </div>
   );

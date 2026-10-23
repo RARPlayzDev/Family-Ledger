@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Plus, Sparkles } from 'lucide-react';
+import { ArrowRight, AlertCircle, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,10 +22,13 @@ import { useHousehold } from '@/hooks/use-household';
 import { useSession } from '@/hooks/use-session';
 import {
   currentMonthKey,
+  daysElapsedInMonth,
+  daysInMonth,
   formatMonthLabel,
   relativeDayLabel,
   todayIsoInTimeZone,
 } from '@/domain/dates';
+import { projectMonthEndSpend } from '@/domain/budgets';
 import { withCategoryShares } from '@/domain/analytics';
 import { formatINR } from '@/domain/money';
 import { errorMessage } from '@/lib/errors';
@@ -55,6 +58,12 @@ export function DashboardPage() {
   const insights = useMonthlyInsights(householdId, monthKey);
   const data = insights.data;
 
+  const elapsed = daysElapsedInMonth(monthKey, today);
+  const totalDays = daysInMonth(monthKey);
+  const projected = data
+    ? projectMonthEndSpend(data.totals.total_paise, elapsed, totalDays)
+    : 0;
+
   const categoryShares = useMemo(
     () => withCategoryShares(data?.categoryTotals ?? []),
     [data?.categoryTotals],
@@ -83,27 +92,37 @@ export function DashboardPage() {
       />
 
       {insights.isError ? (
-        <Card className="border-danger/30 p-4 text-xs text-content-muted">
-          {errorMessage(insights.error)}
-          <Button
-            variant="secondary"
-            size="sm"
-            className="ml-3"
-            onClick={() => void insights.refetch()}
-          >
-            Retry
-          </Button>
+        <Card className="border-danger/30 bg-danger/5 p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="size-5 shrink-0 text-danger mt-0.5" />
+            <div className="flex-1 leading-relaxed text-xs text-content-muted">
+              {errorMessage(insights.error)}
+            </div>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void insights.refetch()}
+            >
+              Retry
+            </Button>
+          </div>
         </Card>
       ) : null}
 
       {insights.isLoading || !data ? (
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className="h-28 w-full" />
+              <Skeleton key={index} className="h-24 w-full" />
             ))}
           </div>
-          <Skeleton className="h-64 w-full" />
+          <div className="grid gap-3 lg:grid-cols-3">
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
           <LoadingBlock label="Crunching the family ledger…" />
         </div>
       ) : (
@@ -230,25 +249,47 @@ export function DashboardPage() {
           </div>
 
           {data.totals.expense_count === 0 ? (
-            <Card className="border-accent/20 bg-accent-soft">
-              <CardContent className="flex flex-wrap items-center gap-3 p-4">
-                <Sparkles className="size-4 text-accent" />
-                <p className="flex-1 text-xs text-content-muted">
-                  {formatMonthLabel(monthKey)} has no expenses yet. Adding one keeps the shared
-                  household ledger and budget tracking accurate.
+            <Card className="border-accent/20 bg-accent/5">
+              <CardContent className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+                <Sparkles className="size-5 text-accent" />
+                <p className="text-xs text-content-muted max-w-xs">
+                  {formatMonthLabel(monthKey)} has no expenses yet. Adding one
+                  keeps the shared household ledger and budget tracking accurate.
                 </p>
-                <Button size="sm" onClick={() => composer.openCreate({ date: today })}>
-                  <Plus />
+                <Button
+                  size="sm"
+                  onClick={() => composer.openCreate({ date: today })}
+                >
+                  <Plus className="size-3.5" />
                   Add expense
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <p className="text-2xs text-content-subtle">
-              Month total {formatINR(data.totals.total_paise)} versus{' '}
-              {formatINR(data.previousTotals.total_paise)} in the previous month. Average expense{' '}
-              {formatINR(data.totals.average_expense_paise, { decimals: 0 })}.
+            <>
+              <p className="text-[10px] text-content-subtle leading-relaxed">
+              Month total{' '}
+              <span className="font-medium text-content">
+                {formatINR(data.totals.total_paise)}
+              </span>{' '}
+              versus{' '}
+              <span className="font-medium text-content-muted">
+                {formatINR(data.previousTotals.total_paise)}
+              </span>{' '}
+              in the previous month. Average expense{' '}
+              <span className="font-medium text-content-muted">
+                {formatINR(data.totals.average_expense_paise, { decimals: 0 })}
+              </span>
+              .
             </p>
+            {projected > 0 ? (
+              <p className="text-[10px] text-content-subtle leading-relaxed">
+                Projected to spend{' '}
+                <span className="font-medium text-content">{formatINR(projected)}</span>{' '}
+                by month-end ({elapsed} of {totalDays} days).
+              </p>
+            ) : null}
+            </>
           )}
         </>
       )}

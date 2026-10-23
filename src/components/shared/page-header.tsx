@@ -4,9 +4,8 @@ import { cn } from '@/lib/utils';
 /**
  * Consistent page heading with an optional action slot.
  *
- * Phones stack the heading above its actions: the title, the month stepper and the
- * buttons each get a full row, instead of fighting over one and truncating the
- * household name. From `sm` upwards it goes back to a single right-aligned row.
+ * Phones stack the heading above its actions; from `sm` it sits on one row.
+ * Minimal, quiet heading that lets the content take the stage.
  */
 export function PageHeader({
   title,
@@ -22,7 +21,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between',
+        'flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between',
         className,
       )}
     >

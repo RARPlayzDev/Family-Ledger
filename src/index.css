@@ -5,6 +5,32 @@
 @layer base {
   :root {
     color-scheme: dark;
+
+    /* FamilyLedger · dark, minimal, professional design tokens. */
+    --fl-canvas: #090A0C;
+    --fl-surface: #0F1115;
+    --fl-surface-raised: #14171D;
+    --fl-surface-sunken: #0C0D10;
+    --fl-surface-hover: #1C2129;
+    --fl-surface-active: #232934;
+    --fl-line: #23282F;
+    --fl-line-strong: #313841;
+    --fl-accent: #2DD4BF;
+    --fl-accent-strong: #14B8A6;
+    --fl-accent-soft: rgba(45, 212, 191, 0.10);
+    --fl-accent-ink: #064E3B;
+    --fl-content: #F1F5F9;
+    --fl-content-muted: #94A3B8;
+    --fl-content-subtle: #64748B;
+    --fl-danger: #F87171;
+    --fl-danger-soft: rgba(248, 113, 113, 0.10);
+    --fl-warn: #FBBF24;
+    --fl-warn-soft: rgba(251, 191, 36, 0.10);
+    --fl-positive: #2DD4BF;
+    --fl-radius: 8px;
+    --fl-shadow-panel: 0 1px 0 0 rgba(255,255,255,0.03) inset,
+      0 12px 32px -20px rgba(0,0,0,0.75);
+    --fl-shadow-pop: 0 24px 56px -24px rgba(0, 0, 0, 0.85);
   }
 
   * {

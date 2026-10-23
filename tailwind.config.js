@@ -5,41 +5,41 @@ export default {
   theme: {
     extend: {
       colors: {
-        // FamilyLedger dark finance palette.
-        canvas: '#0B0C0E',
+        // FamilyLedger · dark, minimal, professional finance palette.
+        canvas: '#090A0C',
         surface: {
-          DEFAULT: '#141619',
-          raised: '#191C20',
-          sunken: '#101214',
-          /** Pressed / hovered tint for rows and menus (`bg-surface-hover`). */
-          hover: '#1E2126',
-          /** Selected / pressed tint for chips, tiles and code blocks. */
-          active: '#242830',
+          DEFAULT: '#0F1115',
+          raised: '#14171D',
+          sunken: '#0C0D10',
+          /** Pressed / hovered tint for rows, menus and chips. */
+          hover: '#1C2129',
+          /** Selected / active tint for chips, tiles and code blocks. */
+          active: '#232934',
         },
         line: {
-          DEFAULT: '#25282D',
-          strong: '#31353B',
+          DEFAULT: '#23282F',
+          strong: '#313841',
         },
         accent: {
-          DEFAULT: '#9AE6B4',
-          strong: '#7BD9A2',
-          soft: 'rgba(154, 230, 180, 0.12)',
-          ink: '#06231A',
+          DEFAULT: '#2DD4BF',
+          strong: '#14B8A6',
+          soft: 'rgba(45, 212, 191, 0.10)',
+          ink: '#064E3B',
         },
         content: {
-          DEFAULT: '#E7E9EC',
-          muted: '#9BA1AA',
-          subtle: '#6C737D',
+          DEFAULT: '#F1F5F9',
+          muted: '#94A3B8',
+          subtle: '#64748B',
         },
         danger: {
           DEFAULT: '#F87171',
-          soft: 'rgba(248, 113, 113, 0.12)',
+          soft: 'rgba(248, 113, 113, 0.10)',
         },
         warn: {
           DEFAULT: '#FBBF24',
-          soft: 'rgba(251, 191, 36, 0.12)',
+          soft: 'rgba(251, 191, 36, 0.10)',
         },
-        positive: '#9AE6B4',
+        positive: '#2DD4BF',
       },
       fontFamily: {
         sans: [
@@ -56,16 +56,19 @@ export default {
       },
       fontSize: {
         '2xs': ['0.6875rem', { lineHeight: '1rem' }],
+        xs: ['0.75rem', { lineHeight: '1rem' }],
       },
       borderRadius: {
-        DEFAULT: '6px',
-        md: '8px',
-        lg: '10px',
-        xl: '12px',
+        DEFAULT: '8px',
+        md: '10px',
+        lg: '12px',
+        xl: '16px',
+        full: '9999px',
       },
       boxShadow: {
-        panel: '0 1px 0 0 rgba(255,255,255,0.02) inset, 0 8px 24px -16px rgba(0,0,0,0.9)',
-        pop: '0 20px 48px -24px rgba(0, 0, 0, 0.95)',
+        panel: '0 1px 0 0 rgba(255,255,255,0.03) inset, 0 12px 32px -20px rgba(0,0,0,0.75)',
+        pop: '0 24px 56px -24px rgba(0, 0, 0, 0.85)',
+        soft: '0 4px 16px -8px rgba(0, 0, 0, 0.6)',
       },
       spacing: {
         safe: 'env(safe-area-inset-bottom)',
@@ -76,18 +79,23 @@ export default {
           to: { opacity: '1' },
         },
         'slide-up': {
-          from: { transform: 'translateY(8px)', opacity: '0' },
+          from: { transform: 'translateY(10px)', opacity: '0' },
           to: { transform: 'translateY(0)', opacity: '1' },
         },
         'toast-in': {
           from: { transform: 'translateY(12px) scale(0.98)', opacity: '0' },
           to: { transform: 'translateY(0) scale(1)', opacity: '1' },
         },
+        'pulse-soft': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.6' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 150ms ease-out',
-        'slide-up': 'slide-up 180ms ease-out',
+        'slide-up': 'slide-up 200ms ease-out',
         'toast-in': 'toast-in 180ms ease-out',
+        'pulse-soft': 'pulse-soft 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
     },
   },
